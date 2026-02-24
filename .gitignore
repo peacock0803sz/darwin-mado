@@ -1,0 +1,4 @@
+# Speckit {{{
+.specify/*
+.claude/commands/speckit.*
+# }}}
