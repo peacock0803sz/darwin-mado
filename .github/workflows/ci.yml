@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: golangci/golangci-lint-action@v8
+
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+
+  build:
+    needs: [lint, test]
+    runs-on: macos-15
+    strategy:
+      matrix:
+        goarch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build ${{ matrix.goarch }}
+        run: |
+          CGO_ENABLED=1 GOOS=darwin GOARCH=${{ matrix.goarch }} \
+            SDKROOT=$(xcrun --sdk macosx --show-sdk-path) \
+            go build -o mado-${{ matrix.goarch }} ./cmd/mado
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mado-${{ matrix.goarch }}
+          path: mado-${{ matrix.goarch }}
+
+  universal:
+    needs: build
+    runs-on: macos-15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mado-*
+          merge-multiple: false
+      - name: Create universal binary
+        run: lipo -create -output mado mado-amd64/mado-amd64 mado-arm64/mado-arm64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mado-universal
+          path: mado
