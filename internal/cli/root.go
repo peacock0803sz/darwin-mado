@@ -6,36 +6,43 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/peacock0803sz/mado/internal/ax"
+	"github.com/peacock0803sz/mado/internal/config"
 	"github.com/peacock0803sz/mado/internal/output"
 )
 
-// RootFlags はルートコマンドのグローバルフラグを保持する。
+// RootFlags holds the global flags for the root command.
 type RootFlags struct {
 	Format  string
 	Timeout time.Duration
 }
 
-// NewRootCmd はルートコマンドを生成する。
-// グローバル変数を使わないコンストラクタパターンでテスト可能にする。
+// NewRootCmd creates the root command.
+// Uses a constructor pattern without global variables to keep the command testable.
+// Loads the config file and implements CLI-flag-over-file priority (T042).
 func NewRootCmd(svc ax.WindowService) *cobra.Command {
-	flags := &RootFlags{}
+	// initialize flag defaults from the config file values
+	cfg, _ := config.Load() // ignore errors and fall back to defaults
+
+	flags := &RootFlags{
+		Format:  cfg.Format,
+		Timeout: cfg.Timeout,
+	}
 
 	root := &cobra.Command{
 		Use:   "mado",
 		Short: "macOS window management CLI",
-		Long: `mado (窓) — macOS のウィンドウを操作するCLIツール。
+		Long: `mado — a CLI tool for managing macOS windows.
 
-Accessibility権限が必要なコマンド: list, move
-権限不要なコマンド: help, version, completion`,
+Commands that require Accessibility permission: list, move
+Commands that do not require permission: help, version, completion`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
 
-	// グローバルフラグ
-	root.PersistentFlags().StringVar(&flags.Format, "format", "text", "出力フォーマット (text|json)")
-	root.PersistentFlags().DurationVar(&flags.Timeout, "timeout", 5*time.Second, "AX操作タイムアウト")
+	// global flags (CLI flags override config file values)
+	root.PersistentFlags().StringVar(&flags.Format, "format", cfg.Format, "output format (text|json)")
+	root.PersistentFlags().DurationVar(&flags.Timeout, "timeout", cfg.Timeout, "AX operation timeout")
 
-	// サブコマンド登録 (T024, T031で追加)
 	root.AddCommand(newListCmd(svc, flags))
 	root.AddCommand(newMoveCmd(svc, flags))
 	root.AddCommand(newVersionCmd())
@@ -44,7 +51,7 @@ Accessibility権限が必要なコマンド: list, move
 	return root
 }
 
-// newOutputFormat はフラグ文字列からoutput.Formatに変換する。
+// newOutputFormat converts a flag string to an output.Format value.
 func newOutputFormat(s string) output.Format {
 	if s == "json" {
 		return output.FormatJSON
