@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -81,6 +82,10 @@ func newMoveCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 
 			affected, err := window.Move(ctx, svc, opts)
 			if err != nil {
+				if errors.Is(err, context.DeadlineExceeded) {
+					_ = f.PrintError(6, "AX operation timed out", nil)
+					os.Exit(6)
+				}
 				switch e := err.(type) {
 				case *ax.AmbiguousTargetError:
 					_ = f.PrintError(4, e.Error(), e.Candidates)

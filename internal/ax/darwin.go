@@ -118,8 +118,34 @@ import "C"
 import (
 	"context"
 	"fmt"
+	"time"
 	"unsafe"
 )
+
+const (
+	axRetryCount    = 3
+	axRetryInterval = 100 * time.Millisecond
+)
+
+// withRetry executes fn up to axRetryCount times, sleeping axRetryInterval between attempts.
+// It aborts early if ctx is cancelled.
+func withRetry(ctx context.Context, fn func() error) error {
+	var lastErr error
+	for i := 0; i < axRetryCount; i++ {
+		if i > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(axRetryInterval):
+			}
+		}
+		lastErr = fn()
+		if lastErr == nil {
+			return nil
+		}
+	}
+	return lastErr
+}
 
 // darwinService is the darwin implementation of WindowService using the AX API.
 type darwinService struct{}
@@ -234,22 +260,24 @@ func (s *darwinService) MoveWindow(ctx context.Context, pid uint32, title string
 		return err
 	}
 
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-	}
+	return withRetry(ctx, func() error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 
-	win, err := findAXWindow(pid, title)
-	if err != nil {
-		return err
-	}
-	defer C.CFRelease(C.CFTypeRef(win))
+		win, err := findAXWindow(pid, title)
+		if err != nil {
+			return err
+		}
+		defer C.CFRelease(C.CFTypeRef(win))
 
-	if ret := C.ax_set_position(win, C.double(x), C.double(y)); ret != 0 {
-		return fmt.Errorf("AXUIElementSetAttributeValue(position) failed: %d", ret)
-	}
-	return nil
+		if ret := C.ax_set_position(win, C.double(x), C.double(y)); ret != 0 {
+			return fmt.Errorf("AXUIElementSetAttributeValue(position) failed: %d", ret)
+		}
+		return nil
+	})
 }
 
 // ResizeWindow resizes the specified window (T025).
@@ -258,22 +286,24 @@ func (s *darwinService) ResizeWindow(ctx context.Context, pid uint32, title stri
 		return err
 	}
 
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-	}
+	return withRetry(ctx, func() error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 
-	win, err := findAXWindow(pid, title)
-	if err != nil {
-		return err
-	}
-	defer C.CFRelease(C.CFTypeRef(win))
+		win, err := findAXWindow(pid, title)
+		if err != nil {
+			return err
+		}
+		defer C.CFRelease(C.CFTypeRef(win))
 
-	if ret := C.ax_set_size(win, C.double(w), C.double(h)); ret != 0 {
-		return fmt.Errorf("AXUIElementSetAttributeValue(size) failed: %d", ret)
-	}
-	return nil
+		if ret := C.ax_set_size(win, C.double(w), C.double(h)); ret != 0 {
+			return fmt.Errorf("AXUIElementSetAttributeValue(size) failed: %d", ret)
+		}
+		return nil
+	})
 }
 
 // --- Helper functions ---

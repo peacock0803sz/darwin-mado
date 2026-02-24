@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -41,6 +42,10 @@ func newListCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 
 			windows, err := window.List(ctx, svc, opts)
 			if err != nil {
+				if errors.Is(err, context.DeadlineExceeded) {
+					_ = f.PrintError(6, "AX operation timed out", nil)
+					os.Exit(6)
+				}
 				return err
 			}
 
