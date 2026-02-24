@@ -2,6 +2,7 @@ package window
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/peacock0803sz/mado/internal/ax"
@@ -38,12 +39,10 @@ func filterWindows(windows []ax.Window, opts ListOptions) []ax.Window {
 	return result
 }
 
-// matchScreen filters a window by screen ID or name.
+// matchScreen filters a window by screen ID (numeric string) or screen name (case-insensitive).
 func matchScreen(w ax.Window, filter string) bool {
-	// exact match on ID
-	if w.ScreenName == filter {
+	if strings.EqualFold(w.ScreenName, filter) {
 		return true
 	}
-	// case-insensitive exact match on screen name
-	return strings.EqualFold(w.ScreenName, filter)
+	return strconv.FormatUint(uint64(w.ScreenID), 10) == filter
 }

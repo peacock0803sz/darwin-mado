@@ -9,8 +9,8 @@ import (
 )
 
 var testWindows = []ax.Window{
-	{AppName: "Terminal", Title: "peacock — zsh", PID: 100, State: ax.StateNormal, ScreenName: "Built-in Retina Display"},
-	{AppName: "Safari", Title: "GitHub", PID: 200, State: ax.StateNormal, ScreenName: "Built-in Retina Display"},
+	{AppName: "Terminal", Title: "peacock — zsh", PID: 100, State: ax.StateNormal, ScreenID: 42, ScreenName: "Built-in Retina Display"},
+	{AppName: "Safari", Title: "GitHub", PID: 200, State: ax.StateNormal, ScreenID: 42, ScreenName: "Built-in Retina Display"},
 	{AppName: "Safari", Title: "Apple", PID: 200, State: ax.StateMinimized},
 	{AppName: "Finder", Title: "", PID: 300, State: ax.StateHidden},
 }
@@ -64,6 +64,19 @@ func TestList_ScreenFilter(t *testing.T) {
 	// Terminal + Safari GitHub (minimized/hidden windows have an empty ScreenName)
 	if len(windows) != 2 {
 		t.Errorf("expected 2 windows on screen, got %d", len(windows))
+	}
+}
+
+func TestList_ScreenFilterByID(t *testing.T) {
+	svc := &ax.MockWindowService{Windows: testWindows}
+	// ScreenID 42 を数値文字列で指定
+	opts := window.ListOptions{ScreenFilter: "42"}
+	windows, err := window.List(context.Background(), svc, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(windows) != 2 {
+		t.Errorf("expected 2 windows with screen ID 42, got %d", len(windows))
 	}
 }
 
