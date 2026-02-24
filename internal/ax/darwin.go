@@ -35,6 +35,13 @@ CFStringRef cg_dict_string(CFDictionaryRef dict, CFStringRef key) {
     return (CFStringRef)CFDictionaryGetValue(dict, key);
 }
 
+// Retrieve the kCGWindowBounds value as a CFDictionaryRef (NULL if absent)
+CFDictionaryRef cg_dict_bounds(CFDictionaryRef dict) {
+    CFTypeRef val = CFDictionaryGetValue(dict, kCGWindowBounds);
+    if (!val) return NULL;
+    return (CFDictionaryRef)val;
+}
+
 // Parse a bounds dictionary as a CGRect
 int cg_parse_bounds(CFDictionaryRef boundsDict, int *x, int *y, int *w, int *h) {
     CGRect rect;
@@ -110,10 +117,11 @@ int ax_set_size(AXUIElementRef win, double w, double h) {
 }
 
 // Null-check helpers (CF types cannot be compared directly to nil in cgo)
-int cf_array_is_null(CFArrayRef a)   { return a == NULL ? 1 : 0; }
-int cf_string_is_null(CFStringRef s) { return s == NULL ? 1 : 0; }
-int cf_type_is_null(CFTypeRef t)     { return t == NULL ? 1 : 0; }
-int cstr_is_null(const char *s)      { return s == NULL ? 1 : 0; }
+int cf_array_is_null(CFArrayRef a)       { return a == NULL ? 1 : 0; }
+int cf_string_is_null(CFStringRef s)     { return s == NULL ? 1 : 0; }
+int cf_dict_is_null(CFDictionaryRef d)   { return d == NULL ? 1 : 0; }
+int cf_type_is_null(CFTypeRef t)         { return t == NULL ? 1 : 0; }
+int cstr_is_null(const char *s)          { return s == NULL ? 1 : 0; }
 */
 import "C"
 
@@ -342,11 +350,11 @@ func windowFromCGInfo(
 	}
 
 	// Retrieve position and size via kCGWindowBounds
-	boundsRef := C.cg_dict_string(dict, C.kCGWindowBounds)
+	boundsDict := C.cg_dict_bounds(dict)
 	var x, y, width, height int
-	if C.cf_string_is_null(boundsRef) == 0 {
+	if C.cf_dict_is_null(boundsDict) == 0 {
 		var cx, cy, cw, ch C.int
-		if C.cg_parse_bounds(C.CFDictionaryRef(unsafe.Pointer(boundsRef)), &cx, &cy, &cw, &ch) != 0 {
+		if C.cg_parse_bounds(boundsDict, &cx, &cy, &cw, &ch) != 0 {
 			x, y, width, height = int(cx), int(cy), int(cw), int(ch)
 		}
 	}
