@@ -122,6 +122,10 @@ int cf_string_is_null(CFStringRef s)     { return s == NULL ? 1 : 0; }
 int cf_dict_is_null(CFDictionaryRef d)   { return d == NULL ? 1 : 0; }
 int cf_type_is_null(CFTypeRef t)         { return t == NULL ? 1 : 0; }
 int cstr_is_null(const char *s)          { return s == NULL ? 1 : 0; }
+
+// Safe CFRelease helpers: avoid Go-side CFArrayRef→CFTypeRef cast which can
+// produce a NULL pointer on ARM64 due to cgo opaque-struct reinterpretation.
+void cf_release_array(CFArrayRef a)      { if (a) CFRelease(a); }
 */
 import "C"
 
@@ -196,9 +200,7 @@ func (s *darwinService) ListWindows(ctx context.Context) ([]Window, error) {
 	axCache := make(map[uint32]C.CFArrayRef)
 	defer func() {
 		for _, arr := range axCache {
-			if C.cf_array_is_null(arr) == 0 {
-				C.CFRelease(C.CFTypeRef(arr))
-			}
+			C.cf_release_array(arr)
 		}
 	}()
 
