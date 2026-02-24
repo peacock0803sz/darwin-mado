@@ -186,7 +186,9 @@ func (s *darwinService) ListWindows(ctx context.Context) ([]Window, error) {
 	axCache := make(map[uint32]C.CFArrayRef)
 	defer func() {
 		for _, arr := range axCache {
-			C.CFRelease(C.CFTypeRef(arr))
+			if C.cf_array_is_null(arr) == 0 {
+				C.CFRelease(C.CFTypeRef(arr))
+			}
 		}
 	}()
 
