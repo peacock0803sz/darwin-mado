@@ -14,7 +14,7 @@ func newVersionCmd() *cobra.Command {
 		Short: "Print version information",
 		Run: func(cmd *cobra.Command, _ []string) {
 			// cmd.Root().Version is injected by main.go via ldflags
-			fmt.Fprintf(cmd.OutOrStdout(), "mado version %s\n", cmd.Root().Version)
+			fmt.Fprintf(cmd.OutOrStdout(), "mado version %s\n", cmd.Root().Version) //nolint:errcheck
 		},
 	}
 }

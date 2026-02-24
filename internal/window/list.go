@@ -1,3 +1,4 @@
+// Package window implements the business logic for listing and moving macOS windows.
 package window
 
 import (

@@ -1,3 +1,4 @@
+// Package cli defines the Cobra subcommands for the mado CLI.
 package cli
 
 import (

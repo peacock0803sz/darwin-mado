@@ -3,6 +3,7 @@ package ax
 // WindowState represents the display state of a window.
 type WindowState string
 
+// Window state constants for the State field of Window.
 const (
 	StateNormal     WindowState = "normal"
 	StateMinimized  WindowState = "minimized"

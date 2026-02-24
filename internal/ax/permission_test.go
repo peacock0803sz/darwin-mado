@@ -70,7 +70,7 @@ func TestAmbiguousTargetError(t *testing.T) {
 	}
 }
 
-func TestListWindows_ContextCancellation(t *testing.T) {
+func TestListWindows_ContextCancellation(_ *testing.T) {
 	svc := &ax.MockWindowService{
 		Windows: []ax.Window{
 			{AppName: "Terminal", Title: "test", PID: 1},

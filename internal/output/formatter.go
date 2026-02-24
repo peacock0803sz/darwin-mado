@@ -1,3 +1,4 @@
+// Package output formats mado command results as text or JSON.
 package output
 
 import (

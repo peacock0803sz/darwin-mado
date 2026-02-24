@@ -1,3 +1,4 @@
+// Package config loads and provides mado configuration from YAML files.
 package config
 
 import (
