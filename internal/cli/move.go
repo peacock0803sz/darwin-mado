@@ -30,17 +30,16 @@ func newMoveCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 		Use:   "move",
 		Short: "Move or resize a window",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			f := output.New(newOutputFormat(root.Format), os.Stdout, os.Stderr)
+
 			// T030: exit 3 when neither --position nor --size is specified
 			if positionStr == "" && sizeStr == "" {
-				f := output.New(newOutputFormat(root.Format), os.Stdout, os.Stderr)
 				_ = f.PrintError(3, "--position or --size is required", nil)
 				os.Exit(3)
 			}
 
 			ctx, cancel := context.WithTimeout(cmd.Context(), root.Timeout)
 			defer cancel()
-
-			f := output.New(newOutputFormat(root.Format), os.Stdout, os.Stderr)
 
 			if err := svc.CheckPermission(); err != nil {
 				msg := err.Error()

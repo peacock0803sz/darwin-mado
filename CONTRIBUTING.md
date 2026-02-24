@@ -2,7 +2,7 @@
 
 ## Development Environment
 
-- Go 1.24+ (cgo enabled)
+- Go 1.25+ (cgo enabled)
 - macOS 15 Sequoia+ (darwin/arm64 or darwin/amd64)
 - golangci-lint v2 (`brew install golangci-lint`)
 - gofumpt (`go install mvdan.cc/gofumpt@latest`)
