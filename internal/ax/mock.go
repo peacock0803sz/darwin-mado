@@ -1,11 +1,9 @@
-//go:build !darwin
-
 package ax
 
 import "context"
 
-// MockWindowService はテスト用のWindowService実装。
-// darwin以外のプラットフォーム（Ubuntu CI等）でコンパイルされる。
+// MockWindowService is a test implementation of WindowService.
+// It can be used from tests on any platform.
 type MockWindowService struct {
 	Windows    []Window
 	Screens    []Screen
@@ -14,11 +12,6 @@ type MockWindowService struct {
 	ResizeErr  error
 	ListErr    error
 	ScreensErr error
-}
-
-// NewWindowService はテスト用モックのWindowServiceを返す。
-func NewWindowService() WindowService {
-	return &MockWindowService{}
 }
 
 func (m *MockWindowService) CheckPermission() error {
