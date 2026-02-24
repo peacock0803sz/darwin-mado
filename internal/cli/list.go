@@ -11,14 +11,14 @@ import (
 	"github.com/peacock0803sz/mado/internal/window"
 )
 
-// newListCmd はlist サブコマンドを生成する (T023)。
+// newListCmd creates the list subcommand (T023).
 func newListCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 	var appFilter string
 	var screenFilter string
 
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "開いているウィンドウ一覧を表示する",
+		Short: "List currently open windows",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx, cancel := context.WithTimeout(cmd.Context(), root.Timeout)
 			defer cancel()
@@ -26,7 +26,11 @@ func newListCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 			f := output.New(newOutputFormat(root.Format), os.Stdout, os.Stderr)
 
 			if err := svc.CheckPermission(); err != nil {
-				_ = f.PrintError(2, err.Error(), nil)
+				msg := err.Error()
+				if permErr, ok := err.(*ax.PermissionError); ok {
+					msg = permErr.Error() + "\n\n" + permErr.Resolution()
+				}
+				_ = f.PrintError(2, msg, nil)
 				os.Exit(2)
 			}
 
@@ -44,8 +48,8 @@ func newListCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&appFilter, "app", "", "アプリ名でフィルタ（大文字小文字無視、完全一致）")
-	cmd.Flags().StringVar(&screenFilter, "screen", "", "スクリーンIDまたは名前でフィルタ（完全一致）")
+	cmd.Flags().StringVar(&appFilter, "app", "", "filter by app name (case-insensitive, exact match)")
+	cmd.Flags().StringVar(&screenFilter, "screen", "", "filter by screen ID or name (exact match)")
 
 	return cmd
 }
