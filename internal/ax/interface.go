@@ -1,3 +1,4 @@
+// Package ax provides the macOS Accessibility API adapter for window management.
 package ax
 
 import "context"

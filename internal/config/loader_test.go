@@ -29,7 +29,7 @@ func TestLoad_FromFile(t *testing.T) {
 	dir := t.TempDir()
 	cfgFile := filepath.Join(dir, "config.yaml")
 	content := "timeout: 10s\nformat: json\n"
-	if err := os.WriteFile(cfgFile, []byte(content), 0600); err != nil {
+	if err := os.WriteFile(cfgFile, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -49,7 +49,7 @@ func TestLoad_FromFile(t *testing.T) {
 func TestLoad_InvalidYAML(t *testing.T) {
 	dir := t.TempDir()
 	cfgFile := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(cfgFile, []byte("{ invalid: yaml: ["), 0600); err != nil {
+	if err := os.WriteFile(cfgFile, []byte("{ invalid: yaml: ["), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -63,7 +63,7 @@ func TestLoad_InvalidYAML(t *testing.T) {
 func TestLoad_InvalidFormat(t *testing.T) {
 	dir := t.TempDir()
 	cfgFile := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(cfgFile, []byte("format: xml\n"), 0600); err != nil {
+	if err := os.WriteFile(cfgFile, []byte("format: xml\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -77,7 +77,7 @@ func TestLoad_InvalidFormat(t *testing.T) {
 func TestLoad_EnvOverride(t *testing.T) {
 	dir := t.TempDir()
 	cfgFile := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(cfgFile, []byte("format: json\n"), 0600); err != nil {
+	if err := os.WriteFile(cfgFile, []byte("format: json\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("MADO_CONFIG", cfgFile)

@@ -45,7 +45,7 @@ func Load() (Config, error) {
 		return cfg, nil // fall back to defaults if path resolution fails
 	}
 
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G304: path is resolved from trusted config locations (XDG or $MADO_CONFIG)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return cfg, nil // no file = use default values

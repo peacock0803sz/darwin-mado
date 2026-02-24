@@ -41,9 +41,9 @@ type ErrorResponse struct {
 
 // ErrorDetail contains the details of an error response.
 type ErrorDetail struct {
-	Code       int                `json:"code"`
-	Message    string             `json:"message"`
-	Candidates []ax.Window        `json:"candidates,omitempty"`
+	Code       int         `json:"code"`
+	Message    string      `json:"message"`
+	Candidates []ax.Window `json:"candidates,omitempty"`
 }
 
 // Formatter writes output in either text or JSON format.
@@ -89,7 +89,9 @@ func (f *Formatter) PrintMoveResult(affected []ax.Window) error {
 		})
 	}
 	for _, w := range affected {
-		fmt.Fprintf(f.out, "Moved: %s %q → (%d, %d)\n", w.AppName, w.Title, w.X, w.Y)
+		if _, err := fmt.Fprintf(f.out, "Moved: %s %q → (%d, %d)\n", w.AppName, w.Title, w.X, w.Y); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -112,13 +114,13 @@ func (f *Formatter) PrintError(code int, message string, candidates []ax.Window)
 
 func (f *Formatter) printWindowsText(windows []ax.Window) error {
 	if len(windows) == 0 {
-		fmt.Fprintln(f.out, "(no windows)")
-		return nil
+		_, err := fmt.Fprintln(f.out, "(no windows)")
+		return err
 	}
 
 	// align columns with tabwriter (min width 8, tab width 1, padding 2)
 	tw := tabwriter.NewWriter(f.out, 8, 1, 2, ' ', 0)
-	fmt.Fprintln(tw, "APP_NAME\tTITLE\tX\tY\tWIDTH\tHEIGHT\tSTATE\tSCREEN")
+	fmt.Fprintln(tw, "APP_NAME\tTITLE\tX\tY\tWIDTH\tHEIGHT\tSTATE\tSCREEN") //nolint:errcheck // tabwriter defers errors to Flush()
 
 	for _, w := range windows {
 		screenName := truncate(w.ScreenName, 20)
@@ -126,21 +128,21 @@ func (f *Formatter) printWindowsText(windows []ax.Window) error {
 			screenName = "-"
 		}
 		title := truncate(w.Title, 32)
-		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%d\t%d\t%s\t%s\n",
+		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%d\t%d\t%s\t%s\n", //nolint:errcheck // tabwriter defers errors to Flush()
 			w.AppName, title, w.X, w.Y, w.Width, w.Height, w.State, screenName)
 	}
 	return tw.Flush()
 }
 
 func (f *Formatter) printErrorText(code int, message string, candidates []ax.Window) error {
-	fmt.Fprintf(f.errOut, "Error: %s\n", message)
+	fmt.Fprintf(f.errOut, "Error: %s\n", message) //nolint:errcheck // stderr write errors are not actionable
 
 	if len(candidates) > 0 {
-		fmt.Fprintln(f.errOut, "\nCandidates:")
+		fmt.Fprintln(f.errOut, "\nCandidates:") //nolint:errcheck
 		for i, c := range candidates {
-			fmt.Fprintf(f.errOut, "  %d. %s %q\tpid=%d\n", i+1, c.AppName, c.Title, c.PID)
+			fmt.Fprintf(f.errOut, "  %d. %s %q\tpid=%d\n", i+1, c.AppName, c.Title, c.PID) //nolint:errcheck
 		}
-		fmt.Fprintln(f.errOut, "\nHint: use --title to narrow down, or --all to move all")
+		fmt.Fprintln(f.errOut, "\nHint: use --title to narrow down, or --all to move all") //nolint:errcheck
 	}
 
 	_ = code
