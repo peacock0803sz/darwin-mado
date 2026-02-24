@@ -9,6 +9,42 @@ import (
 	"github.com/sebdah/goldie/v2"
 )
 
+var multiScreenWindows = []ax.Window{
+	{
+		AppName:    "Terminal",
+		Title:      "peacock — zsh — 80×24",
+		PID:        1234,
+		X:          100,
+		Y:          200,
+		Width:      800,
+		Height:     600,
+		State:      ax.StateNormal,
+		ScreenID:   69678592,
+		ScreenName: "Built-in Retina Display",
+	},
+	{
+		AppName:    "Safari",
+		Title:      "GitHub",
+		PID:        5678,
+		X:          -1920,
+		Y:          0,
+		Width:      1920,
+		Height:     1080,
+		State:      ax.StateNormal,
+		ScreenID:   12345678,
+		ScreenName: "DELL U2720Q",
+	},
+	{
+		AppName:  "Finder",
+		Title:    "",
+		PID:      300,
+		Width:    800,
+		Height:   600,
+		State:    ax.StateMinimized,
+		ScreenID: 0,
+	},
+}
+
 var sampleWindows = []ax.Window{
 	{
 		AppName:    "Terminal",
@@ -117,6 +153,32 @@ func TestPrintMoveResultJSON(t *testing.T) {
 	}
 	g := goldie.New(t)
 	g.AssertJson(t, "move_success_json", buf.Bytes())
+}
+
+func TestPrintWindowsMultiScreen(t *testing.T) {
+	tests := []struct {
+		name   string
+		format output.Format
+		golden string
+	}{
+		{"multiscreen text", output.FormatText, "list_multiscreen_text"},
+		{"multiscreen json", output.FormatJSON, "list_multiscreen_json"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			f := output.New(tt.format, &buf, &buf)
+			if err := f.PrintWindows(multiScreenWindows); err != nil {
+				t.Fatal(err)
+			}
+			g := goldie.New(t)
+			if tt.format == output.FormatJSON {
+				g.AssertJson(t, tt.golden, buf.Bytes())
+			} else {
+				g.Assert(t, tt.golden, buf.Bytes())
+			}
+		})
+	}
 }
 
 func TestPrintAmbiguousError(t *testing.T) {
