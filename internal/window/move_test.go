@@ -96,7 +96,11 @@ func TestMove_NotFound(t *testing.T) {
 	}
 	_, err := window.Move(context.Background(), svc, opts)
 	if err == nil {
-		t.Fatal("expected error for not found, got nil")
+		t.Fatal("expected NotFoundError, got nil")
+	}
+	var notFound *ax.NotFoundError
+	if !errors.As(err, &notFound) {
+		t.Fatalf("expected *ax.NotFoundError, got %T: %v", err, err)
 	}
 }
 

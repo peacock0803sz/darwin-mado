@@ -38,10 +38,7 @@ func Move(ctx context.Context, svc ax.WindowService, opts MoveOptions) ([]ax.Win
 	targets := filterForMove(windows, opts)
 
 	if len(targets) == 0 {
-		return nil, &ax.AmbiguousTargetError{
-			Query:      buildQuery(opts),
-			Candidates: nil,
-		}
+		return nil, &ax.NotFoundError{Query: buildQuery(opts)}
 	}
 
 	if len(targets) > 1 && !opts.All {

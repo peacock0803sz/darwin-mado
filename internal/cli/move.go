@@ -92,6 +92,9 @@ func newMoveCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 					os.Exit(5)
 				}
 				switch e := err.(type) {
+				case *ax.NotFoundError:
+					_ = f.PrintError(4, e.Error(), nil)
+					os.Exit(4)
 				case *ax.AmbiguousTargetError:
 					_ = f.PrintError(4, e.Error(), e.Candidates)
 					os.Exit(4)

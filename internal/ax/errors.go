@@ -18,6 +18,15 @@ func (e *PermissionError) Resolution() string {
   3. Re-run the command`
 }
 
+// NotFoundError is returned when no windows match the given query.
+type NotFoundError struct {
+	Query string
+}
+
+func (e *NotFoundError) Error() string {
+	return fmt.Sprintf("no windows match %q", e.Query)
+}
+
 // AmbiguousTargetError is returned when multiple windows match the given query.
 type AmbiguousTargetError struct {
 	Query      string
