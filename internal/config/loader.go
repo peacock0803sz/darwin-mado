@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"go.yaml.in/yaml/v4"
@@ -85,7 +86,11 @@ func Load() (Config, error) {
 	// Validate presets
 	if len(raw.Presets) > 0 {
 		if verrs := preset.ValidatePresets(raw.Presets); verrs != nil {
-			return cfg, fmt.Errorf("config (%s): preset validation failed: %s", path, verrs[0].Error())
+			var errMsgs []string
+			for _, vErr := range verrs {
+				errMsgs = append(errMsgs, vErr.Error())
+			}
+			return cfg, fmt.Errorf("config (%s): preset validation failed: %s", path, strings.Join(errMsgs, "; "))
 		}
 		cfg.Presets = raw.Presets
 	}
