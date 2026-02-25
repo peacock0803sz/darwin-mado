@@ -44,7 +44,9 @@ type ApplyOutcome struct {
 }
 
 // Apply applies the named preset to matching windows.
-func Apply(ctx context.Context, svc ax.WindowService, presets []Preset, name string) (*ApplyOutcome, error) {
+// ignoreApps contains app names to skip (case-insensitive). Rules targeting ignored apps
+// are skipped with reason "ignored".
+func Apply(ctx context.Context, svc ax.WindowService, presets []Preset, name string, ignoreApps []string) (*ApplyOutcome, error) {
 	var target *Preset
 	for i := range presets {
 		if presets[i].Name == name {
@@ -73,6 +75,17 @@ func Apply(ctx context.Context, svc ax.WindowService, presets []Preset, name str
 	totalFullscreen := 0
 
 	for i, rule := range target.Rules {
+		// Skip rules whose app is in the ignore list
+		if window.IsIgnoredApp(rule.App, ignoreApps) {
+			outcome.Results = append(outcome.Results, ApplyResult{
+				RuleIndex: i,
+				AppFilter: rule.App,
+				Skipped:   true,
+				Reason:    "ignored",
+			})
+			continue
+		}
+
 		// ルールに基づいてウィンドウをフィルタリング
 		matches := filterForRule(windows, rule)
 

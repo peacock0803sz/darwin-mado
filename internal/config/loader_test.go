@@ -162,3 +162,75 @@ func TestLoad_EnvOverride(t *testing.T) {
 		t.Errorf("expected format json from file, got %q", cfg.Format)
 	}
 }
+
+func TestLoad_IgnoreAppsValid(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "config.yaml")
+	content := "ignore_apps:\n  - Safari\n  - Dock\n"
+	if err := os.WriteFile(cfgFile, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("MADO_CONFIG", cfgFile)
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cfg.IgnoreApps) != 2 {
+		t.Fatalf("expected 2 ignore_apps, got %d", len(cfg.IgnoreApps))
+	}
+	if cfg.IgnoreApps[0] != "Safari" || cfg.IgnoreApps[1] != "Dock" {
+		t.Errorf("expected [Safari, Dock], got %v", cfg.IgnoreApps)
+	}
+}
+
+func TestLoad_IgnoreAppsEmptyString(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "config.yaml")
+	content := "ignore_apps:\n  - Safari\n  - \"\"\n"
+	if err := os.WriteFile(cfgFile, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("MADO_CONFIG", cfgFile)
+	_, err := config.Load()
+	if err == nil {
+		t.Fatal("expected error for empty string in ignore_apps, got nil")
+	}
+}
+
+func TestLoad_IgnoreAppsAbsent(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "config.yaml")
+	content := "format: text\n"
+	if err := os.WriteFile(cfgFile, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("MADO_CONFIG", cfgFile)
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cfg.IgnoreApps) != 0 {
+		t.Errorf("expected empty ignore_apps, got %v", cfg.IgnoreApps)
+	}
+}
+
+func TestLoad_IgnoreAppsDuplicates(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "config.yaml")
+	content := "ignore_apps:\n  - Safari\n  - Safari\n"
+	if err := os.WriteFile(cfgFile, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("MADO_CONFIG", cfgFile)
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cfg.IgnoreApps) != 2 {
+		t.Fatalf("expected 2 ignore_apps (duplicates accepted), got %d", len(cfg.IgnoreApps))
+	}
+}

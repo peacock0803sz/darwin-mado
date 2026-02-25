@@ -17,17 +17,19 @@ import (
 // Config is the structure of the mado configuration file.
 // Priority order: CLI flags > config file > default values.
 type Config struct {
-	Timeout time.Duration
-	Format  string
-	Presets []preset.Preset
+	Timeout    time.Duration
+	Format     string
+	Presets    []preset.Preset
+	IgnoreApps []string
 }
 
 // rawConfig is an intermediate structure for YAML parsing.
 // time.Duration cannot be decoded directly from YAML, so it is received as a string.
 type rawConfig struct {
-	Timeout string          `yaml:"timeout"`
-	Format  string          `yaml:"format"`
-	Presets []preset.Preset `yaml:"presets"`
+	Timeout    string          `yaml:"timeout"`
+	Format     string          `yaml:"format"`
+	Presets    []preset.Preset `yaml:"presets"`
+	IgnoreApps []string        `yaml:"ignore_apps"`
 }
 
 // Default returns the default configuration.
@@ -94,6 +96,16 @@ func Load() (Config, error) {
 		}
 		cfg.Presets = raw.Presets
 	}
+
+	// validate ignore_apps entries
+	for i, app := range raw.IgnoreApps {
+		trimmed := strings.TrimSpace(app)
+		if trimmed == "" {
+			return cfg, fmt.Errorf("config: ignore_apps[%d]: empty app name is not allowed", i)
+		}
+		raw.IgnoreApps[i] = trimmed
+	}
+	cfg.IgnoreApps = raw.IgnoreApps
 
 	return cfg, nil
 }

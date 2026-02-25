@@ -13,6 +13,7 @@ import (
 type ListOptions struct {
 	AppFilter    string
 	ScreenFilter string
+	IgnoreApps   []string
 }
 
 // List retrieves all windows and returns them after applying filters.
@@ -32,12 +33,25 @@ func filterWindows(windows []ax.Window, opts ListOptions) []ax.Window {
 		if opts.AppFilter != "" && !strings.EqualFold(w.AppName, opts.AppFilter) {
 			continue
 		}
+		if IsIgnoredApp(w.AppName, opts.IgnoreApps) {
+			continue
+		}
 		if opts.ScreenFilter != "" && !MatchScreen(w, opts.ScreenFilter) {
 			continue
 		}
 		result = append(result, w)
 	}
 	return result
+}
+
+// IsIgnoredApp returns true if appName matches any entry in ignoreApps (case-insensitive).
+func IsIgnoredApp(appName string, ignoreApps []string) bool {
+	for _, ignored := range ignoreApps {
+		if strings.EqualFold(appName, ignored) {
+			return true
+		}
+	}
+	return false
 }
 
 // MatchScreen filters a window by screen ID (numeric string) or screen name (case-insensitive).

@@ -80,6 +80,16 @@
           }
         }
       }
+    },
+    "ignore_apps": {
+      "type": "array",
+      "description": "Application names to exclude from list output and preset matching",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": false,
+      "default": []
     }
   }
 }

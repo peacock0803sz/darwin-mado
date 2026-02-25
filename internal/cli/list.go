@@ -39,6 +39,12 @@ func newListCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 				AppFilter:    appFilter,
 				ScreenFilter: screenFilter,
 			}
+			// When --app is explicitly specified, bypass the ignore list.
+			// The user's intent to inspect a specific app takes precedence
+			// over the ignore_apps config (FR-006).
+			if appFilter == "" {
+				opts.IgnoreApps = root.IgnoreApps
+			}
 
 			windows, err := window.List(ctx, svc, opts)
 			if err != nil {

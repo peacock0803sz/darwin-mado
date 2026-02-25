@@ -100,3 +100,57 @@ func TestList_EmptyResult(t *testing.T) {
 		t.Errorf("expected empty list, got %d windows", len(windows))
 	}
 }
+
+func TestList_IgnoreApps(t *testing.T) {
+	svc := &ax.MockWindowService{Windows: testWindows}
+	opts := window.ListOptions{IgnoreApps: []string{"Safari"}}
+	windows, err := window.List(context.Background(), svc, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// testWindows has 2 Safari windows; remaining: Terminal + Finder = 2
+	if len(windows) != 2 {
+		t.Errorf("expected 2 windows (Safari excluded), got %d", len(windows))
+	}
+	for _, w := range windows {
+		if w.AppName == "Safari" {
+			t.Error("Safari window should be excluded by IgnoreApps")
+		}
+	}
+}
+
+func TestList_IgnoreAppsCaseInsensitive(t *testing.T) {
+	svc := &ax.MockWindowService{Windows: testWindows}
+	opts := window.ListOptions{IgnoreApps: []string{"safari"}}
+	windows, err := window.List(context.Background(), svc, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(windows) != 2 {
+		t.Errorf("expected 2 windows (safari case-insensitive), got %d", len(windows))
+	}
+}
+
+func TestList_IgnoreAppsEmpty(t *testing.T) {
+	svc := &ax.MockWindowService{Windows: testWindows}
+	opts := window.ListOptions{IgnoreApps: nil}
+	windows, err := window.List(context.Background(), svc, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(windows) != len(testWindows) {
+		t.Errorf("expected %d windows (no ignore), got %d", len(testWindows), len(windows))
+	}
+}
+
+func TestList_IgnoreAppsNonExistent(t *testing.T) {
+	svc := &ax.MockWindowService{Windows: testWindows}
+	opts := window.ListOptions{IgnoreApps: []string{"NoSuchApp"}}
+	windows, err := window.List(context.Background(), svc, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(windows) != len(testWindows) {
+		t.Errorf("expected %d windows (non-existent ignored app), got %d", len(testWindows), len(windows))
+	}
+}
