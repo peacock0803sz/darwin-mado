@@ -15,9 +15,10 @@ import (
 
 // RootFlags holds the global flags for the root command.
 type RootFlags struct {
-	Format  string
-	Timeout time.Duration
-	Presets []preset.Preset
+	Format     string
+	Timeout    time.Duration
+	Presets    []preset.Preset
+	IgnoreApps []string
 }
 
 // NewRootCmd creates the root command.
@@ -57,6 +58,7 @@ Commands that do not require permission: help, version, completion, preset list,
 				flags.Timeout = cfg.Timeout
 			}
 			flags.Presets = cfg.Presets
+			flags.IgnoreApps = cfg.IgnoreApps
 			return nil
 		},
 	}

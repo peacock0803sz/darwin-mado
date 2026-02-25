@@ -201,3 +201,23 @@ func TestMove_TitleFilter(t *testing.T) {
 		t.Errorf("expected title 'GitHub', got %q", affected[0].Title)
 	}
 }
+
+// T014: MoveにはIgnoreAppsフィールドがない (FR-006設計意図の文書化)
+// moveは常に明示的なターゲット指定が必要なため、ignore listの影響を受けない
+func TestMove_NoIgnoreAppsField(t *testing.T) {
+	windows := []ax.Window{
+		{AppName: "Dock", Title: "Dock", PID: 500, State: ax.StateNormal, Width: 100, Height: 100},
+	}
+	svc := &ax.MockWindowService{Windows: windows}
+	opts := window.MoveOptions{
+		AppFilter: "Dock",
+		Position:  &window.Point{X: 0, Y: 0},
+	}
+	affected, err := window.Move(context.Background(), svc, opts)
+	if err != nil {
+		t.Fatalf("Move with explicit --app should succeed even for typically-ignored apps: %v", err)
+	}
+	if len(affected) != 1 {
+		t.Errorf("expected 1 affected, got %d", len(affected))
+	}
+}

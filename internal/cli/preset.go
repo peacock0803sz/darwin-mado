@@ -3,6 +3,8 @@ package cli
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -51,13 +53,28 @@ func newPresetApplyCmd(svc ax.WindowService, flags *RootFlags) *cobra.Command {
 			ctx, cancel := context.WithTimeout(cmd.Context(), flags.Timeout)
 			defer cancel()
 
-			outcome, err := preset.Apply(ctx, svc, flags.Presets, name, nil)
+			outcome, err := preset.Apply(ctx, svc, flags.Presets, name, flags.IgnoreApps)
+
+			// stderr警告: ignoreされたルールをユーザーに通知
+			emitIgnoredWarnings(cmd.ErrOrStderr(), outcome)
 			if err != nil {
 				return handleApplyError(f, err, outcome)
 			}
 
 			return f.PrintPresetApplyResult(buildApplyResponse(name, outcome, true, nil))
 		},
+	}
+}
+
+// emitIgnoredWarnings writes warnings to stderr for rules skipped due to ignore_apps.
+func emitIgnoredWarnings(w io.Writer, outcome *preset.ApplyOutcome) {
+	if outcome == nil {
+		return
+	}
+	for _, r := range outcome.Results {
+		if r.Reason == "ignored" {
+			fmt.Fprintf(w, "warning: preset rule[%d] (app: %q) skipped: app is in ignore_apps list\n", r.RuleIndex, r.AppFilter)
+		}
 	}
 }
 
