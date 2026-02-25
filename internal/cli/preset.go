@@ -9,7 +9,6 @@ import (
 	"go.yaml.in/yaml/v4"
 
 	"github.com/peacock0803sz/mado/internal/ax"
-	"github.com/peacock0803sz/mado/internal/config"
 	"github.com/peacock0803sz/mado/internal/output"
 	"github.com/peacock0803sz/mado/internal/preset"
 )
@@ -49,16 +48,10 @@ func newPresetApplyCmd(svc ax.WindowService, flags *RootFlags) *cobra.Command {
 				os.Exit(2)
 			}
 
-			cfg, err := config.Load()
-			if err != nil {
-				_ = f.PrintError(3, err.Error(), nil)
-				os.Exit(3)
-			}
-
 			ctx, cancel := context.WithTimeout(cmd.Context(), flags.Timeout)
 			defer cancel()
 
-			outcome, err := preset.Apply(ctx, svc, cfg.Presets, name)
+			outcome, err := preset.Apply(ctx, svc, flags.Presets, name)
 			if err != nil {
 				return handleApplyError(f, err, outcome)
 			}
@@ -205,14 +198,7 @@ func newPresetListCmd(flags *RootFlags) *cobra.Command {
 		Short: "List all defined presets",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			f := output.New(newOutputFormat(flags.Format), os.Stdout, os.Stderr)
-
-			cfg, err := config.Load()
-			if err != nil {
-				_ = f.PrintError(3, err.Error(), nil)
-				os.Exit(3)
-			}
-
-			return f.PrintPresetList(cfg.Presets)
+			return f.PrintPresetList(flags.Presets)
 		},
 	}
 }
@@ -226,13 +212,7 @@ func newPresetShowCmd(flags *RootFlags) *cobra.Command {
 			f := output.New(newOutputFormat(flags.Format), os.Stdout, os.Stderr)
 			name := args[0]
 
-			cfg, err := config.Load()
-			if err != nil {
-				_ = f.PrintError(3, err.Error(), nil)
-				os.Exit(3)
-			}
-
-			for _, p := range cfg.Presets {
+			for _, p := range flags.Presets {
 				if p.Name == name {
 					return f.PrintPresetShow(p)
 				}
@@ -251,16 +231,8 @@ func newPresetValidateCmd(flags *RootFlags) *cobra.Command {
 		Short: "Validate preset configuration",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			f := output.New(newOutputFormat(flags.Format), os.Stdout, os.Stderr)
-
-			cfg, err := config.Load()
-			if err != nil {
-				// Catch validation errors from config.Load
-				_ = f.PrintError(3, err.Error(), nil)
-				os.Exit(3)
-			}
-
-			// If Load succeeds, presets are already validated
-			return f.PrintPresetValidateResult(len(cfg.Presets), nil)
+			// PersistentPreRunE already validated config
+			return f.PrintPresetValidateResult(len(flags.Presets), nil)
 		},
 	}
 }
