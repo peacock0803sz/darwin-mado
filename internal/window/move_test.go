@@ -146,7 +146,7 @@ type partialMockService struct {
 	callCount    int
 }
 
-func (m *partialMockService) MoveWindow(ctx context.Context, pid uint32, title string, x, y int) error {
+func (m *partialMockService) MoveWindow(_ context.Context, pid uint32, title string, x, y int) error {
 	m.callCount++
 	if m.callCount <= m.successCount {
 		return nil
