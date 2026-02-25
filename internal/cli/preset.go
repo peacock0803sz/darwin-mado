@@ -51,7 +51,7 @@ func newPresetApplyCmd(svc ax.WindowService, flags *RootFlags) *cobra.Command {
 			ctx, cancel := context.WithTimeout(cmd.Context(), flags.Timeout)
 			defer cancel()
 
-			outcome, err := preset.Apply(ctx, svc, flags.Presets, name)
+			outcome, err := preset.Apply(ctx, svc, flags.Presets, name, nil)
 			if err != nil {
 				return handleApplyError(f, err, outcome)
 			}

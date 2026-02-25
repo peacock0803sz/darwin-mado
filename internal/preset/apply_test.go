@@ -39,7 +39,7 @@ var testWindows = []ax.Window{
 
 func TestApply_Success(t *testing.T) {
 	svc := &ax.MockWindowService{Windows: testWindows}
-	outcome, err := preset.Apply(context.Background(), svc, testPresets, "coding")
+	outcome, err := preset.Apply(context.Background(), svc, testPresets, "coding", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestApply_SkipNonRunningApp(t *testing.T) {
 		},
 	}}
 	svc := &ax.MockWindowService{Windows: testWindows}
-	outcome, err := preset.Apply(context.Background(), svc, presets, "test")
+	outcome, err := preset.Apply(context.Background(), svc, presets, "test", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -87,7 +87,7 @@ func TestApply_SkipFullscreen(t *testing.T) {
 		{AppName: "Terminal", Title: "zsh", PID: 200, State: ax.StateNormal, Width: 800, Height: 600},
 	}
 	svc := &ax.MockWindowService{Windows: windows}
-	outcome, err := preset.Apply(context.Background(), svc, testPresets, "coding")
+	outcome, err := preset.Apply(context.Background(), svc, testPresets, "coding", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestApply_AllFullscreen(t *testing.T) {
 		{AppName: "Terminal", Title: "zsh", PID: 200, State: ax.StateFullscreen, Width: 1440, Height: 900},
 	}
 	svc := &ax.MockWindowService{Windows: windows}
-	_, err := preset.Apply(context.Background(), svc, testPresets, "coding")
+	_, err := preset.Apply(context.Background(), svc, testPresets, "coding", nil)
 	if err == nil {
 		t.Fatal("expected AllFullscreenError, got nil")
 	}
@@ -129,7 +129,7 @@ func TestApply_MultiWindowMatch(t *testing.T) {
 		},
 	}}
 	svc := &ax.MockWindowService{Windows: testWindows}
-	outcome, err := preset.Apply(context.Background(), svc, presets, "browse")
+	outcome, err := preset.Apply(context.Background(), svc, presets, "browse", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -154,7 +154,7 @@ func TestApply_FirstMatchDedup(t *testing.T) {
 		},
 	}}
 	svc := &ax.MockWindowService{Windows: testWindows}
-	outcome, err := preset.Apply(context.Background(), svc, presets, "dedup")
+	outcome, err := preset.Apply(context.Background(), svc, presets, "dedup", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -206,7 +206,7 @@ func TestApply_PartialSuccess(t *testing.T) {
 		moveSuccessCount:   1,
 		resizeSuccessCount: 100,
 	}
-	_, err := preset.Apply(context.Background(), svc, testPresets, "coding")
+	_, err := preset.Apply(context.Background(), svc, testPresets, "coding", nil)
 	if err == nil {
 		// Codeは1つのウィンドウなので成功する。
 		// Terminalも1つなので2回目のMoveWindowがエラーになる。
@@ -221,12 +221,138 @@ func TestApply_PartialSuccess(t *testing.T) {
 
 func TestApply_NotFound(t *testing.T) {
 	svc := &ax.MockWindowService{Windows: testWindows}
-	_, err := preset.Apply(context.Background(), svc, testPresets, "nonexistent")
+	_, err := preset.Apply(context.Background(), svc, testPresets, "nonexistent", nil)
 	if err == nil {
 		t.Fatal("expected NotFoundError, got nil")
 	}
 	var notFound *preset.NotFoundError
 	if !errors.As(err, &notFound) {
 		t.Fatalf("expected *preset.NotFoundError, got %T: %v", err, err)
+	}
+}
+
+func TestApply_IgnoredAppSkipped(t *testing.T) {
+	svc := &ax.MockWindowService{Windows: testWindows}
+	ignoreApps := []string{"Code"}
+	outcome, err := preset.Apply(context.Background(), svc, testPresets, "coding", ignoreApps)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var ignoredCount int
+	for _, r := range outcome.Results {
+		if r.Skipped && r.Reason == "ignored" {
+			ignoredCount++
+		}
+	}
+	if ignoredCount != 1 {
+		t.Errorf("expected 1 ignored rule (Code), got %d", ignoredCount)
+	}
+}
+
+func TestApply_IgnoredAppNonIgnoredStillApplies(t *testing.T) {
+	svc := &ax.MockWindowService{Windows: testWindows}
+	ignoreApps := []string{"Code"}
+	outcome, err := preset.Apply(context.Background(), svc, testPresets, "coding", ignoreApps)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Code is ignored, Terminal should still be applied
+	var appliedCount int
+	for _, r := range outcome.Results {
+		if !r.Skipped && len(r.Affected) > 0 {
+			appliedCount++
+			if r.AppFilter != "Terminal" {
+				t.Errorf("expected applied rule for Terminal, got %q", r.AppFilter)
+			}
+		}
+	}
+	if appliedCount != 1 {
+		t.Errorf("expected 1 applied rule (Terminal), got %d", appliedCount)
+	}
+}
+
+func TestApply_EmptyIgnoreAppsNoSkipping(t *testing.T) {
+	svc := &ax.MockWindowService{Windows: testWindows}
+	outcome, err := preset.Apply(context.Background(), svc, testPresets, "coding", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, r := range outcome.Results {
+		if r.Reason == "ignored" {
+			t.Error("no rules should be ignored with empty ignoreApps")
+		}
+	}
+}
+
+func TestApply_IgnoredAppCaseInsensitive(t *testing.T) {
+	svc := &ax.MockWindowService{Windows: testWindows}
+	ignoreApps := []string{"code"} // lowercase, rule.App is "Code"
+	outcome, err := preset.Apply(context.Background(), svc, testPresets, "coding", ignoreApps)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var ignoredCount int
+	for _, r := range outcome.Results {
+		if r.Skipped && r.Reason == "ignored" {
+			ignoredCount++
+		}
+	}
+	if ignoredCount != 1 {
+		t.Errorf("expected 1 ignored rule (case-insensitive), got %d", ignoredCount)
+	}
+}
+
+func TestApply_IgnoredReasonInResult(t *testing.T) {
+	svc := &ax.MockWindowService{Windows: testWindows}
+	ignoreApps := []string{"Code"}
+	outcome, err := preset.Apply(context.Background(), svc, testPresets, "coding", ignoreApps)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify first result (Code) has correct fields for JSON output
+	found := false
+	for _, r := range outcome.Results {
+		if r.AppFilter == "Code" {
+			found = true
+			if !r.Skipped {
+				t.Error("expected Skipped=true for ignored app")
+			}
+			if r.Reason != "ignored" {
+				t.Errorf("expected Reason='ignored', got %q", r.Reason)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected result for Code app")
+	}
+}
+
+func TestApply_IgnoredPlusPartialFailure(t *testing.T) {
+	// Code is ignored, Terminal move fails → error + ignore warning
+	svc := &ax.MockWindowService{
+		Windows: testWindows,
+		MoveErr: errors.New("AX error"),
+	}
+	ignoreApps := []string{"Code"}
+	outcome, err := preset.Apply(context.Background(), svc, testPresets, "coding", ignoreApps)
+	// Terminal move fails, so we expect an error
+	if err == nil {
+		t.Fatal("expected error for Terminal move failure, got nil")
+	}
+
+	// But the outcome should still have the ignored result
+	var hasIgnored bool
+	for _, r := range outcome.Results {
+		if r.Reason == "ignored" {
+			hasIgnored = true
+		}
+	}
+	if !hasIgnored {
+		t.Error("expected ignored result even with partial failure")
 	}
 }
