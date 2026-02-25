@@ -33,7 +33,7 @@ func filterWindows(windows []ax.Window, opts ListOptions) []ax.Window {
 		if opts.AppFilter != "" && !strings.EqualFold(w.AppName, opts.AppFilter) {
 			continue
 		}
-		if isIgnoredApp(w.AppName, opts.IgnoreApps) {
+		if IsIgnoredApp(w.AppName, opts.IgnoreApps) {
 			continue
 		}
 		if opts.ScreenFilter != "" && !MatchScreen(w, opts.ScreenFilter) {
@@ -44,8 +44,8 @@ func filterWindows(windows []ax.Window, opts ListOptions) []ax.Window {
 	return result
 }
 
-// isIgnoredApp returns true if appName matches any entry in ignoreApps (case-insensitive).
-func isIgnoredApp(appName string, ignoreApps []string) bool {
+// IsIgnoredApp returns true if appName matches any entry in ignoreApps (case-insensitive).
+func IsIgnoredApp(appName string, ignoreApps []string) bool {
 	for _, ignored := range ignoreApps {
 		if strings.EqualFold(appName, ignored) {
 			return true

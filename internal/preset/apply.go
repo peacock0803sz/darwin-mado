@@ -75,8 +75,8 @@ func Apply(ctx context.Context, svc ax.WindowService, presets []Preset, name str
 	totalFullscreen := 0
 
 	for i, rule := range target.Rules {
-		// ルールのアプリがignore listに含まれているかチェック
-		if isIgnoredApp(rule.App, ignoreApps) {
+		// Skip rules whose app is in the ignore list
+		if window.IsIgnoredApp(rule.App, ignoreApps) {
 			outcome.Results = append(outcome.Results, ApplyResult{
 				RuleIndex: i,
 				AppFilter: rule.App,
@@ -202,16 +202,6 @@ func Apply(ctx context.Context, svc ax.WindowService, presets []Preset, name str
 	}
 
 	return outcome, nil
-}
-
-// isIgnoredApp returns true if appName matches any entry in ignoreApps (case-insensitive).
-func isIgnoredApp(appName string, ignoreApps []string) bool {
-	for _, ignored := range ignoreApps {
-		if strings.EqualFold(appName, ignored) {
-			return true
-		}
-	}
-	return false
 }
 
 // filterForRule はルールの条件に基づいてウィンドウを絞り込む
