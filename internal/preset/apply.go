@@ -194,13 +194,15 @@ func Apply(ctx context.Context, svc ax.WindowService, presets []Preset, name str
 // filterForRule はルールの条件に基づいてウィンドウを絞り込む
 func filterForRule(windows []ax.Window, rule Rule) []ax.Window {
 	var result []ax.Window
+	lowerRuleTitle := strings.ToLower(rule.Title)
+
 	for _, w := range windows {
 		// app: case-insensitive exact match
 		if !strings.EqualFold(w.AppName, rule.App) {
 			continue
 		}
 		// title: case-insensitive partial match
-		if rule.Title != "" && !strings.Contains(strings.ToLower(w.Title), strings.ToLower(rule.Title)) {
+		if rule.Title != "" && !strings.Contains(strings.ToLower(w.Title), lowerRuleTitle) {
 			continue
 		}
 		// screen: reuse MatchScreen
