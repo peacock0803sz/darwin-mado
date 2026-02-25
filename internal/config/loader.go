@@ -99,9 +99,11 @@ func Load() (Config, error) {
 
 	// validate ignore_apps entries
 	for i, app := range raw.IgnoreApps {
-		if app == "" {
+		trimmed := strings.TrimSpace(app)
+		if trimmed == "" {
 			return cfg, fmt.Errorf("config: ignore_apps[%d]: empty app name is not allowed", i)
 		}
+		raw.IgnoreApps[i] = trimmed
 	}
 	cfg.IgnoreApps = raw.IgnoreApps
 
