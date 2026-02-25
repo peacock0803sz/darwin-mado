@@ -1,0 +1,5 @@
+Preset: coding
+Description: Editor left, terminal right
+Rules:
+  [0] app=Code position=(0,0) size=960x1080
+  [1] app=Terminal position=(960,0) size=960x1080

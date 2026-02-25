@@ -6,6 +6,7 @@ import (
 
 	"github.com/peacock0803sz/mado/internal/ax"
 	"github.com/peacock0803sz/mado/internal/output"
+	"github.com/peacock0803sz/mado/internal/preset"
 	"github.com/sebdah/goldie/v2"
 )
 
@@ -169,6 +170,153 @@ func TestPrintWindowsMultiScreen(t *testing.T) {
 			var buf bytes.Buffer
 			f := output.New(tt.format, &buf, &buf)
 			if err := f.PrintWindows(multiScreenWindows); err != nil {
+				t.Fatal(err)
+			}
+			g := goldie.New(t)
+			if tt.format == output.FormatJSON {
+				g.AssertJson(t, tt.golden, buf.Bytes())
+			} else {
+				g.Assert(t, tt.golden, buf.Bytes())
+			}
+		})
+	}
+}
+
+var samplePresets = []preset.Preset{
+	{
+		Name:        "coding",
+		Description: "Editor left, terminal right",
+		Rules: []preset.Rule{
+			{App: "Code", Position: []int{0, 0}, Size: []int{960, 1080}},
+			{App: "Terminal", Position: []int{960, 0}, Size: []int{960, 1080}},
+		},
+	},
+	{
+		Name:        "meeting",
+		Description: "Browser center, notes right",
+		Rules: []preset.Rule{
+			{App: "Safari", Title: "Zoom", Position: []int{0, 0}, Size: []int{1280, 1080}},
+			{App: "Notes", Position: []int{1280, 0}, Size: []int{640, 1080}},
+		},
+	},
+}
+
+func TestPrintPresetList(t *testing.T) {
+	tests := []struct {
+		name   string
+		format output.Format
+		golden string
+	}{
+		{"text", output.FormatText, "preset_list_text"},
+		{"json", output.FormatJSON, "preset_list_json"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			f := output.New(tt.format, &buf, &buf)
+			if err := f.PrintPresetList(samplePresets); err != nil {
+				t.Fatal(err)
+			}
+			g := goldie.New(t)
+			if tt.format == output.FormatJSON {
+				g.AssertJson(t, tt.golden, buf.Bytes())
+			} else {
+				g.Assert(t, tt.golden, buf.Bytes())
+			}
+		})
+	}
+}
+
+func TestPrintPresetShow(t *testing.T) {
+	tests := []struct {
+		name   string
+		format output.Format
+		golden string
+	}{
+		{"text", output.FormatText, "preset_show_text"},
+		{"json", output.FormatJSON, "preset_show_json"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			f := output.New(tt.format, &buf, &buf)
+			if err := f.PrintPresetShow(samplePresets[0]); err != nil {
+				t.Fatal(err)
+			}
+			g := goldie.New(t)
+			if tt.format == output.FormatJSON {
+				g.AssertJson(t, tt.golden, buf.Bytes())
+			} else {
+				g.Assert(t, tt.golden, buf.Bytes())
+			}
+		})
+	}
+}
+
+func TestPrintPresetApply(t *testing.T) {
+	resp := output.PresetApplyResponse{
+		SchemaVersion: 1,
+		Success:       true,
+		Preset:        "coding",
+		Applied: []output.PresetApplyAffected{
+			{
+				RuleIndex: 0,
+				AppFilter: "Code",
+				Affected: []ax.Window{
+					{AppName: "Code", Title: "main.go", X: 0, Y: 0, Width: 960, Height: 1080},
+				},
+			},
+			{
+				RuleIndex: 1,
+				AppFilter: "Terminal",
+				Affected: []ax.Window{
+					{AppName: "Terminal", Title: "zsh", X: 960, Y: 0, Width: 960, Height: 1080},
+				},
+			},
+		},
+		Skipped: []output.PresetApplySkipped{},
+	}
+	tests := []struct {
+		name   string
+		format output.Format
+		golden string
+	}{
+		{"text", output.FormatText, "preset_apply_text"},
+		{"json", output.FormatJSON, "preset_apply_json"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			f := output.New(tt.format, &buf, &buf)
+			if err := f.PrintPresetApplyResult(resp); err != nil {
+				t.Fatal(err)
+			}
+			g := goldie.New(t)
+			if tt.format == output.FormatJSON {
+				g.AssertJson(t, tt.golden, buf.Bytes())
+			} else {
+				g.Assert(t, tt.golden, buf.Bytes())
+			}
+		})
+	}
+}
+
+func TestPrintPresetValidate(t *testing.T) {
+	tests := []struct {
+		name   string
+		format output.Format
+		count  int
+		errs   []preset.ValidationError
+		golden string
+	}{
+		{"valid text", output.FormatText, 3, nil, "preset_validate_valid_text"},
+		{"valid json", output.FormatJSON, 3, nil, "preset_validate_valid_json"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			f := output.New(tt.format, &buf, &buf)
+			if err := f.PrintPresetValidateResult(tt.count, tt.errs); err != nil {
 				t.Fatal(err)
 			}
 			g := goldie.New(t)
