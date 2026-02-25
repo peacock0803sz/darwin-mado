@@ -466,4 +466,3 @@ func findAXWindow(pid uint32, title string) (C.AXUIElementRef, error) {
 	}
 	return 0, fmt.Errorf("window not found: pid=%d title=%q", pid, title)
 }
-
