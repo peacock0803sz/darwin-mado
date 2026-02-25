@@ -111,6 +111,8 @@ func buildApplyResponse(name string, outcome *preset.ApplyOutcome, success bool,
 		Success:       success,
 		Preset:        name,
 		Error:         errDetail,
+		Applied:       make([]output.PresetApplyAffected, 0),
+		Skipped:       make([]output.PresetApplySkipped, 0),
 	}
 
 	for _, r := range outcome.Results {
@@ -127,13 +129,6 @@ func buildApplyResponse(name string, outcome *preset.ApplyOutcome, success bool,
 				Affected:  r.Affected,
 			})
 		}
-	}
-
-	if resp.Applied == nil {
-		resp.Applied = []output.PresetApplyAffected{}
-	}
-	if resp.Skipped == nil {
-		resp.Skipped = []output.PresetApplySkipped{}
 	}
 
 	return resp
