@@ -39,7 +39,9 @@ func newListCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 				AppFilter:    appFilter,
 				ScreenFilter: screenFilter,
 			}
-			// --appが明示的に指定されていない場合のみignore listを適用
+			// When --app is explicitly specified, bypass the ignore list.
+			// The user's intent to inspect a specific app takes precedence
+			// over the ignore_apps config (FR-006).
 			if appFilter == "" {
 				opts.IgnoreApps = root.IgnoreApps
 			}
