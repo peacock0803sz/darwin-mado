@@ -23,6 +23,9 @@ type Window struct {
 	State      WindowState `json:"state"`
 	ScreenID   uint32      `json:"screen_id"`
 	ScreenName string      `json:"screen_name"`
+	// Desktop is the Mission Control desktop number (1-based).
+	// 0 = assigned to all desktops, -1 = unknown (minimized or API unavailable).
+	Desktop int `json:"desktop"`
 }
 
 // Screen represents an individual display on macOS.

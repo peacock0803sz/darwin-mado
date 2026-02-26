@@ -9,6 +9,97 @@ package ax
 #include <CoreGraphics/CoreGraphics.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <stdlib.h>
+#include <dlfcn.h>
+#include <stdint.h>
+
+// --- CGS Private API (SkyLight.framework via dlsym) ---
+
+typedef int CGSConnectionID;
+typedef CFDictionaryRef (*CGSCopySpacesForWindows_f)(CGSConnectionID, int, CFArrayRef);
+typedef CFArrayRef      (*CGSCopyManagedDisplaySpaces_f)(CGSConnectionID);
+typedef CGSConnectionID (*CGSMainConnectionID_f)(void);
+
+static CGSCopySpacesForWindows_f     _cgs_spaces_for_windows;
+static CGSCopyManagedDisplaySpaces_f _cgs_managed_display_spaces;
+static CGSMainConnectionID_f         _cgs_main_connection_id;
+static int _cgsAvailable;
+
+static void cgs_init(void) {
+    void *sl = dlopen(
+        "/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight",
+        RTLD_LAZY | RTLD_GLOBAL);
+    if (!sl) return;
+    _cgs_main_connection_id      = (CGSMainConnectionID_f)dlsym(sl, "CGSMainConnectionID");
+    _cgs_spaces_for_windows      = (CGSCopySpacesForWindows_f)dlsym(sl, "CGSCopySpacesForWindows");
+    _cgs_managed_display_spaces  = (CGSCopyManagedDisplaySpaces_f)dlsym(sl, "CGSCopyManagedDisplaySpaces");
+    if (_cgs_main_connection_id && _cgs_spaces_for_windows && _cgs_managed_display_spaces) {
+        _cgsAvailable = 1;
+    }
+}
+
+static int cgs_is_available(void) { return _cgsAvailable; }
+
+static CGSConnectionID cgs_get_cid(void) { return _cgs_main_connection_id(); }
+
+// Batch: returns CFDictionaryRef{windowID -> [spaceID,...]}. Caller must CFRelease.
+static CFDictionaryRef cgs_copy_spaces_for_windows(CGSConnectionID cid, CFArrayRef wids) {
+    return _cgs_spaces_for_windows(cid, 0x7, wids);
+}
+
+// Returns CFArrayRef of display info dicts. Caller must CFRelease.
+static CFArrayRef cgs_copy_managed_display_spaces(CGSConnectionID cid) {
+    return _cgs_managed_display_spaces(cid);
+}
+
+// Build a CFArray of uint32 window IDs. Caller must CFRelease.
+static CFArrayRef cg_make_wid_array(const uint32_t *ids, int n) {
+    CFMutableArrayRef a = CFArrayCreateMutable(NULL, n, &kCFTypeArrayCallBacks);
+    if (!a) return NULL;
+    for (int i = 0; i < n; i++) {
+        CFNumberRef num = CFNumberCreate(NULL, kCFNumberSInt32Type, (const int32_t*)&ids[i]);
+        if (num) { CFArrayAppendValue(a, num); CFRelease(num); }
+    }
+    return a;
+}
+
+// Look up per-window space IDs in batch result dict by window ID.
+// Returns NULL if window not present in dict. Do NOT CFRelease the result.
+static CFArrayRef cgs_window_space_ids(CFDictionaryRef dict, uint32_t wid) {
+    if (!dict) return NULL;
+    CFNumberRef key = CFNumberCreate(NULL, kCFNumberSInt32Type, (const int32_t*)&wid);
+    if (!key) return NULL;
+    CFTypeRef val = CFDictionaryGetValue(dict, key);
+    CFRelease(key);
+    if (!val) return NULL;
+    return (CFArrayRef)val;
+}
+
+// Get a space ID (int64) from a space IDs array at index.
+static int cgs_get_space_id(CFArrayRef arr, int idx, int64_t *out) {
+    if (!arr || idx >= (int)CFArrayGetCount(arr)) return 0;
+    CFNumberRef num = (CFNumberRef)CFArrayGetValueAtIndex(arr, (CFIndex)idx);
+    if (!num) return 0;
+    return CFNumberGetValue(num, kCFNumberSInt64Type, out) ? 1 : 0;
+}
+
+// Get "Spaces" CFArrayRef from a display dict. Do NOT CFRelease the result.
+static CFArrayRef cg_display_spaces(CFDictionaryRef d) {
+    if (!d) return NULL;
+    CFTypeRef val = CFDictionaryGetValue(d, CFSTR("Spaces"));
+    if (!val) return NULL;
+    return (CFArrayRef)val;
+}
+
+// Get id64 (space ID) from a space info dict.
+static int cg_space_id(CFDictionaryRef d, int64_t *out) {
+    if (!d) return 0;
+    CFNumberRef num = (CFNumberRef)CFDictionaryGetValue(d, CFSTR("id64"));
+    if (!num) return 0;
+    return CFNumberGetValue(num, kCFNumberSInt64Type, out) ? 1 : 0;
+}
+
+// Safe CFRelease helpers for types not covered by existing helpers.
+static void cf_release_dict(CFDictionaryRef d) { if (d) CFRelease(d); }
 
 // Check Accessibility permission
 int ax_is_trusted() {
@@ -132,9 +223,63 @@ import "C"
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 	"unsafe"
 )
+
+// cgsOnce guards one-time initialization of the SkyLight CGS private API.
+var cgsOnce sync.Once
+
+func ensureCGS() {
+	cgsOnce.Do(func() { C.cgs_init() })
+}
+
+// windowEntry pairs a resolved Window with its CGWindowID for the CGS batch call.
+type windowEntry struct {
+	win  *Window
+	cgID uint32
+}
+
+// buildSpaceMap queries CGSCopyManagedDisplaySpaces and returns a map from
+// Space ID (int64) to 1-based desktop number (Mission Control order).
+// Returns nil on API failure; a nil map lookup returns (0, false) safely in Go.
+func buildSpaceMap(cid C.CGSConnectionID) map[int64]int {
+	displaySpaces := C.cgs_copy_managed_display_spaces(cid)
+	if C.cf_array_is_null(displaySpaces) != 0 {
+		return nil
+	}
+	defer C.cf_release_array(displaySpaces)
+
+	spaceMap := make(map[int64]int)
+	desktopNum := 1
+	displayCount := int(C.CFArrayGetCount(displaySpaces))
+
+	for i := 0; i < displayCount; i++ {
+		displayDict := C.CFDictionaryRef(C.CFArrayGetValueAtIndex(displaySpaces, C.CFIndex(i)))
+		if C.cf_dict_is_null(displayDict) != 0 {
+			continue
+		}
+		spacesArr := C.cg_display_spaces(displayDict)
+		if C.cf_array_is_null(spacesArr) != 0 {
+			continue
+		}
+		spaceCount := int(C.CFArrayGetCount(spacesArr))
+		for j := 0; j < spaceCount; j++ {
+			spaceDict := C.CFDictionaryRef(C.CFArrayGetValueAtIndex(spacesArr, C.CFIndex(j)))
+			if C.cf_dict_is_null(spaceDict) != 0 {
+				desktopNum++
+				continue
+			}
+			var sid C.int64_t
+			if C.cg_space_id(spaceDict, &sid) != 0 {
+				spaceMap[int64(sid)] = desktopNum
+			}
+			desktopNum++
+		}
+	}
+	return spaceMap
+}
 
 const (
 	axRetryCount    = 3
@@ -194,7 +339,7 @@ func (s *darwinService) ListWindows(ctx context.Context) ([]Window, error) {
 	defer C.CFRelease(C.CFTypeRef(infoList))
 
 	count := int(C.CFArrayGetCount(infoList))
-	windows := make([]Window, 0, count)
+	entries := make([]windowEntry, 0, count)
 
 	// Cache the AX window array per PID to avoid redundant calls
 	axCache := make(map[uint32]C.CFArrayRef)
@@ -222,13 +367,71 @@ func (s *darwinService) ListWindows(ctx context.Context) ([]Window, error) {
 		}
 		dict := C.CFDictionaryRef(dictRef)
 
-		w := windowFromCGInfo(dict, screens, axCache, pidWindowIndex)
-		if w == nil {
+		entry := windowFromCGInfo(dict, screens, axCache, pidWindowIndex)
+		if entry == nil {
 			continue
 		}
-		windows = append(windows, *w)
+		entries = append(entries, *entry)
 	}
 
+	// Populate Desktop field via CGS batch call (T005b).
+	ensureCGS()
+	if C.cgs_is_available() != 0 && len(entries) > 0 {
+		cgIDs := make([]C.uint32_t, len(entries))
+		for i, e := range entries {
+			cgIDs[i] = C.uint32_t(e.cgID)
+		}
+		widArray := C.cg_make_wid_array(&cgIDs[0], C.int(len(cgIDs)))
+		if C.cf_array_is_null(widArray) == 0 {
+			defer C.cf_release_array(widArray)
+
+			cid := C.cgs_get_cid()
+			spaceMap := buildSpaceMap(cid)
+
+			batchResult := C.cgs_copy_spaces_for_windows(cid, widArray)
+			if C.cf_dict_is_null(batchResult) == 0 {
+				defer C.cf_release_dict(batchResult)
+				for i := range entries {
+					spaceIDs := C.cgs_window_space_ids(batchResult, C.uint32_t(entries[i].cgID))
+					if C.cf_array_is_null(spaceIDs) != 0 {
+						entries[i].win.Desktop = -1
+						continue
+					}
+					switch int(C.CFArrayGetCount(spaceIDs)) {
+					case 0:
+						entries[i].win.Desktop = -1
+					case 1:
+						var sid C.int64_t
+						if C.cgs_get_space_id(spaceIDs, 0, &sid) != 0 {
+							if dn, ok := spaceMap[int64(sid)]; ok {
+								entries[i].win.Desktop = dn
+							} else {
+								entries[i].win.Desktop = -1
+							}
+						} else {
+							entries[i].win.Desktop = -1
+						}
+					default:
+						// Present on multiple spaces = "all desktops"
+						entries[i].win.Desktop = 0
+					}
+				}
+			} else {
+				for i := range entries {
+					entries[i].win.Desktop = -1
+				}
+			}
+		}
+	} else if C.cgs_is_available() == 0 {
+		for i := range entries {
+			entries[i].win.Desktop = -1
+		}
+	}
+
+	windows := make([]Window, len(entries))
+	for i, e := range entries {
+		windows[i] = *e.win
+	}
 	return windows, nil
 }
 
@@ -322,13 +525,18 @@ func (s *darwinService) ResizeWindow(ctx context.Context, pid uint32, title stri
 
 // --- Helper functions ---
 
-// windowFromCGInfo builds a Window from a CGWindowInfo dictionary.
+// windowFromCGInfo builds a windowEntry from a CGWindowInfo dictionary.
+// The entry pairs the resolved Window with its CGWindowID for the CGS batch lookup.
 func windowFromCGInfo(
 	dict C.CFDictionaryRef,
 	screens []Screen,
 	axCache map[uint32]C.CFArrayRef,
 	pidWindowIndex map[uint32]int,
-) *Window {
+) *windowEntry {
+	// Extract CGWindowID via kCGWindowNumber (needed for CGS Space lookup).
+	var cgWinNum C.int32_t
+	C.cg_dict_int(dict, C.kCGWindowNumber, &cgWinNum) // ignore return: 0 is safe fallback
+
 	// Retrieve the app PID via kCGWindowOwnerPID
 	var pid C.int32_t
 	if C.cg_dict_int(dict, C.kCGWindowOwnerPID, &pid) == 0 || pid == 0 {
@@ -402,17 +610,20 @@ func windowFromCGInfo(
 		screenName = ""
 	}
 
-	return &Window{
-		AppName:    appName,
-		Title:      title,
-		PID:        appPID,
-		X:          x,
-		Y:          y,
-		Width:      width,
-		Height:     height,
-		State:      state,
-		ScreenID:   screenID,
-		ScreenName: screenName,
+	return &windowEntry{
+		win: &Window{
+			AppName:    appName,
+			Title:      title,
+			PID:        appPID,
+			X:          x,
+			Y:          y,
+			Width:      width,
+			Height:     height,
+			State:      state,
+			ScreenID:   screenID,
+			ScreenName: screenName,
+		},
+		cgID: uint32(cgWinNum),
 	}
 }
 
