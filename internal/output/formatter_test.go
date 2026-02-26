@@ -22,6 +22,7 @@ var multiScreenWindows = []ax.Window{
 		State:      ax.StateNormal,
 		ScreenID:   69678592,
 		ScreenName: "Built-in Retina Display",
+		Desktop:    1,
 	},
 	{
 		AppName:    "Safari",
@@ -34,6 +35,7 @@ var multiScreenWindows = []ax.Window{
 		State:      ax.StateNormal,
 		ScreenID:   12345678,
 		ScreenName: "DELL U2720Q",
+		Desktop:    2,
 	},
 	{
 		AppName:  "Finder",
@@ -43,6 +45,7 @@ var multiScreenWindows = []ax.Window{
 		Height:   600,
 		State:    ax.StateMinimized,
 		ScreenID: 0,
+		Desktop:  -1,
 	},
 }
 
@@ -58,6 +61,7 @@ var sampleWindows = []ax.Window{
 		State:      ax.StateNormal,
 		ScreenID:   69678592,
 		ScreenName: "Built-in Retina Display",
+		Desktop:    1,
 	},
 	{
 		AppName:    "Safari",
@@ -70,6 +74,7 @@ var sampleWindows = []ax.Window{
 		State:      ax.StateNormal,
 		ScreenID:   69678592,
 		ScreenName: "Built-in Retina Display",
+		Desktop:    1,
 	},
 	{
 		AppName:  "Safari",
@@ -79,6 +84,7 @@ var sampleWindows = []ax.Window{
 		Height:   800,
 		State:    ax.StateMinimized,
 		ScreenID: 0,
+		Desktop:  -1,
 	},
 }
 

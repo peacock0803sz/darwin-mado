@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"text/tabwriter"
 
 	"github.com/peacock0803sz/mado/internal/ax"
@@ -297,7 +298,7 @@ func (f *Formatter) printWindowsText(windows []ax.Window) error {
 
 	// align columns with tabwriter (min width 8, tab width 1, padding 2)
 	tw := tabwriter.NewWriter(f.out, 8, 1, 2, ' ', 0)
-	fmt.Fprintln(tw, "APP_NAME\tTITLE\tX\tY\tWIDTH\tHEIGHT\tSTATE\tSCREEN") //nolint:errcheck // tabwriter defers errors to Flush()
+	fmt.Fprintln(tw, "APP_NAME\tTITLE\tX\tY\tWIDTH\tHEIGHT\tSTATE\tDESKTOP\tSCREEN") //nolint:errcheck // tabwriter defers errors to Flush()
 
 	for _, w := range windows {
 		screenName := truncate(w.ScreenName, 20)
@@ -305,10 +306,24 @@ func (f *Formatter) printWindowsText(windows []ax.Window) error {
 			screenName = "-"
 		}
 		title := truncate(w.Title, 32)
-		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%d\t%d\t%s\t%s\n", //nolint:errcheck // tabwriter defers errors to Flush()
-			w.AppName, title, w.X, w.Y, w.Width, w.Height, w.State, screenName)
+		desktop := formatDesktop(w.Desktop)
+		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%d\t%d\t%s\t%s\t%s\n", //nolint:errcheck // tabwriter defers errors to Flush()
+			w.AppName, title, w.X, w.Y, w.Width, w.Height, w.State, desktop, screenName)
 	}
 	return tw.Flush()
+}
+
+// formatDesktop converts a Desktop int to its display string.
+// 0 = "all" (assigned to all desktops), -1 = "?" (unknown), N = numeric string.
+func formatDesktop(d int) string {
+	switch d {
+	case 0:
+		return "all"
+	case -1:
+		return "?"
+	default:
+		return strconv.Itoa(d)
+	}
 }
 
 func (f *Formatter) printErrorText(code int, message string, candidates []ax.Window) error {
