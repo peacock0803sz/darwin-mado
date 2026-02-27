@@ -2,6 +2,7 @@ package window
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/peacock0803sz/mado/internal/ax"
@@ -19,12 +20,13 @@ type Size struct {
 
 // MoveOptions holds the options for the move command.
 type MoveOptions struct {
-	AppFilter    string
-	TitleFilter  string
-	ScreenFilter string
-	Position     *Point
-	Size         *Size
-	All          bool
+	AppFilter     string
+	TitleFilter   string
+	ScreenFilter  string
+	DesktopFilter int // 0 = no filter; N = only windows on desktop N (plus desktop=0 windows)
+	Position      *Point
+	Size          *Size
+	All           bool
 }
 
 // Move moves or resizes the target window(s).
@@ -96,6 +98,9 @@ func filterForMove(windows []ax.Window, opts MoveOptions) []ax.Window {
 		if opts.ScreenFilter != "" && !MatchScreen(w, opts.ScreenFilter) {
 			continue
 		}
+		if !MatchDesktop(w, opts.DesktopFilter) {
+			continue
+		}
 		result = append(result, w)
 	}
 	return result
@@ -108,6 +113,12 @@ func buildQuery(opts MoveOptions) string {
 	}
 	if opts.TitleFilter != "" {
 		parts = append(parts, `--title "`+opts.TitleFilter+`"`)
+	}
+	if opts.ScreenFilter != "" {
+		parts = append(parts, `--screen "`+opts.ScreenFilter+`"`)
+	}
+	if opts.DesktopFilter != 0 {
+		parts = append(parts, fmt.Sprintf("--desktop %d", opts.DesktopFilter))
 	}
 	if len(parts) == 0 {
 		return "(no filter)"

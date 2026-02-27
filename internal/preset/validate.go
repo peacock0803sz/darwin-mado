@@ -76,6 +76,15 @@ func ValidatePresets(presets []Preset) []ValidationError {
 				})
 			}
 
+			// Desktop value -1 is an internal runtime sentinel, not valid in config.
+			if r.Desktop != nil && *r.Desktop < 0 {
+				errs = append(errs, ValidationError{
+					Preset:  name,
+					Field:   ruleField + ".desktop",
+					Message: "desktop must be >= 0 (0 = all desktops, 1+ = specific desktop)",
+				})
+			}
+
 			hasPosition := len(r.Position) > 0
 			hasSize := len(r.Size) > 0
 

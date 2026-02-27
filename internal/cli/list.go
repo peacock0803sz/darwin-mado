@@ -16,6 +16,7 @@ import (
 func newListCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 	var appFilter string
 	var screenFilter string
+	var desktopFilter int
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -45,6 +46,14 @@ func newListCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 			if appFilter == "" {
 				opts.IgnoreApps = root.IgnoreApps
 			}
+			// Only apply desktop filter when explicitly specified.
+			if cmd.Flags().Changed("desktop") {
+				if desktopFilter < 1 {
+					_ = f.PrintError(3, "invalid --desktop value: must be a positive integer", nil)
+					os.Exit(3)
+				}
+				opts.DesktopFilter = desktopFilter
+			}
 
 			windows, err := window.List(ctx, svc, opts)
 			if err != nil {
@@ -61,6 +70,7 @@ func newListCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 
 	cmd.Flags().StringVar(&appFilter, "app", "", "filter by app name (case-insensitive, exact match)")
 	cmd.Flags().StringVar(&screenFilter, "screen", "", "filter by screen ID or name (exact match)")
+	cmd.Flags().IntVar(&desktopFilter, "desktop", 0, "filter by desktop number (1-based, Mission Control order)")
 
 	return cmd
 }

@@ -18,12 +18,13 @@ import (
 // newMoveCmd creates the move subcommand (T029).
 func newMoveCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 	var (
-		appFilter    string
-		titleFilter  string
-		screenFilter string
-		positionStr  string
-		sizeStr      string
-		all          bool
+		appFilter     string
+		titleFilter   string
+		screenFilter  string
+		desktopFilter int
+		positionStr   string
+		sizeStr       string
+		all           bool
 	)
 
 	cmd := &cobra.Command{
@@ -55,6 +56,14 @@ func newMoveCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 				TitleFilter:  titleFilter,
 				ScreenFilter: screenFilter,
 				All:          all,
+			}
+			// Only apply desktop filter when explicitly specified.
+			if cmd.Flags().Changed("desktop") {
+				if desktopFilter < 1 {
+					_ = f.PrintError(3, "invalid --desktop value: must be a positive integer", nil)
+					os.Exit(3)
+				}
+				opts.DesktopFilter = desktopFilter
 			}
 
 			if positionStr != "" {
@@ -115,6 +124,7 @@ func newMoveCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 	cmd.Flags().StringVar(&appFilter, "app", "", "filter by app name (case-insensitive, exact match)")
 	cmd.Flags().StringVar(&titleFilter, "title", "", "filter by title (case-insensitive, partial match)")
 	cmd.Flags().StringVar(&screenFilter, "screen", "", "filter by screen ID or name")
+	cmd.Flags().IntVar(&desktopFilter, "desktop", 0, "scope operation to desktop number (1-based, Mission Control order)")
 	cmd.Flags().StringVar(&positionStr, "position", "", "target position x,y (global coordinates)")
 	cmd.Flags().StringVar(&sizeStr, "size", "", "target size width,height")
 	cmd.Flags().BoolVar(&all, "all", false, "apply to all matching windows when multiple match")

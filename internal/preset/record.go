@@ -50,6 +50,11 @@ func Record(ctx context.Context, svc ax.WindowService, name string, opts RecordO
 		if appCount[w.AppName] > 1 {
 			r.Title = w.Title
 		}
+		// Capture desktop number; skip desktop=-1 (unknown) so the rule matches any desktop.
+		if w.Desktop >= 0 {
+			d := w.Desktop
+			r.Desktop = &d
+		}
 		rules = append(rules, r)
 	}
 

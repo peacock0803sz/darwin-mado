@@ -222,6 +222,19 @@ func filterForRule(windows []ax.Window, rule Rule) []ax.Window {
 		if rule.Screen != "" && !window.MatchScreen(w, rule.Screen) {
 			continue
 		}
+		// desktop: nil = no filter; *Desktop=0 = only all-desktops windows; *Desktop=N = N or all-desktops
+		if rule.Desktop != nil {
+			switch *rule.Desktop {
+			case 0:
+				if w.Desktop != 0 {
+					continue
+				}
+			default:
+				if w.Desktop != 0 && w.Desktop != *rule.Desktop {
+					continue
+				}
+			}
+		}
 		result = append(result, w)
 	}
 	return result
