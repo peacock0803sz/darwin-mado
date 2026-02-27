@@ -375,6 +375,7 @@ func (s *darwinService) ListWindows(ctx context.Context) ([]Window, error) {
 	}
 
 	// Populate Desktop field via CGS batch call (T005b).
+	// Desktop defaults to -1 (unknown) from windowFromCGInfo; only overwrite on success.
 	ensureCGS()
 	if C.cgs_is_available() != 0 && len(entries) > 0 {
 		cgIDs := make([]C.uint32_t, len(entries))
@@ -394,37 +395,24 @@ func (s *darwinService) ListWindows(ctx context.Context) ([]Window, error) {
 				for i := range entries {
 					spaceIDs := C.cgs_window_space_ids(batchResult, C.uint32_t(entries[i].cgID))
 					if C.cf_array_is_null(spaceIDs) != 0 {
-						entries[i].win.Desktop = -1
 						continue
 					}
 					switch int(C.CFArrayGetCount(spaceIDs)) {
 					case 0:
-						entries[i].win.Desktop = -1
+						// Window is not on any space (e.g., minimized). Desktop remains -1.
 					case 1:
 						var sid C.int64_t
 						if C.cgs_get_space_id(spaceIDs, 0, &sid) != 0 {
 							if dn, ok := spaceMap[int64(sid)]; ok {
 								entries[i].win.Desktop = dn
-							} else {
-								entries[i].win.Desktop = -1
 							}
-						} else {
-							entries[i].win.Desktop = -1
 						}
 					default:
 						// Present on multiple spaces = "all desktops"
 						entries[i].win.Desktop = 0
 					}
 				}
-			} else {
-				for i := range entries {
-					entries[i].win.Desktop = -1
-				}
 			}
-		}
-	} else if C.cgs_is_available() == 0 {
-		for i := range entries {
-			entries[i].win.Desktop = -1
 		}
 	}
 
@@ -622,6 +610,7 @@ func windowFromCGInfo(
 			State:      state,
 			ScreenID:   screenID,
 			ScreenName: screenName,
+			Desktop:    -1,
 		},
 		cgID: uint32(cgWinNum),
 	}
