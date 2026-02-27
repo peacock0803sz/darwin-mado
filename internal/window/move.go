@@ -114,6 +114,9 @@ func buildQuery(opts MoveOptions) string {
 	if opts.TitleFilter != "" {
 		parts = append(parts, `--title "`+opts.TitleFilter+`"`)
 	}
+	if opts.ScreenFilter != "" {
+		parts = append(parts, `--screen "`+opts.ScreenFilter+`"`)
+	}
 	if opts.DesktopFilter != 0 {
 		parts = append(parts, fmt.Sprintf("--desktop %d", opts.DesktopFilter))
 	}
