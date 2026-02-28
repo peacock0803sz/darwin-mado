@@ -12,8 +12,8 @@ jobs:
       matrix:
         goarch: [amd64, arm64]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: go.mod
       - name: Build ${{ matrix.goarch }}
@@ -22,7 +22,7 @@ jobs:
             SDKROOT=$(xcrun --sdk macosx --show-sdk-path) \
             go build -ldflags="-X main.version=${{ github.ref_name }}" \
             -o mado-${{ matrix.goarch }} ./cmd/mado
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: mado-${{ matrix.goarch }}
           path: mado-${{ matrix.goarch }}
@@ -33,7 +33,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: mado-*
           merge-multiple: false
@@ -41,6 +41,6 @@ jobs:
         run: lipo -create -output mado mado-amd64/mado-amd64 mado-arm64/mado-arm64
       - name: Compress
         run: tar czf mado-darwin-universal.tar.gz mado
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           files: mado-darwin-universal.tar.gz

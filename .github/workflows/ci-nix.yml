@@ -1,0 +1,52 @@
+name: CI (Nix)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'flake.nix'
+      - 'flake.lock'
+      - 'nix/**'
+      - 'schemas/**'
+      - 'cmd/nix-options-gen/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/ci-nix.yml'
+  pull_request:
+    paths:
+      - 'flake.nix'
+      - 'flake.lock'
+      - 'nix/**'
+      - 'schemas/**'
+      - 'cmd/nix-options-gen/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/ci-nix.yml'
+
+jobs:
+  nix-codegen-check:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+      - name: Check nix/generated-options.nix is up to date
+        run: |
+          go run ./cmd/nix-options-gen \
+            -schema schemas/config.v1.schema.json \
+            -output /tmp/generated-check.nix
+          if ! diff -q nix/generated-options.nix /tmp/generated-check.nix; then
+            echo "nix/generated-options.nix is stale. Run: go run ./cmd/nix-options-gen -schema schemas/config.v1.schema.json -output nix/generated-options.nix"
+            exit 1
+          fi
+
+  nix-build:
+    needs: nix-codegen-check
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
+      - uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39 # v13
+      - name: Build default package
+        run: nix build .#default
