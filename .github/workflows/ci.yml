@@ -24,6 +24,23 @@ jobs:
           go-version-file: go.mod
       - run: go test ./...
 
+  nix-codegen-check:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Check nix/generated-options.nix is up to date
+        run: |
+          go run ./cmd/nix-options-gen \
+            -schema schemas/config.v1.schema.json \
+            -output /tmp/generated-check.nix
+          if ! diff -q nix/generated-options.nix /tmp/generated-check.nix; then
+            echo "nix/generated-options.nix is stale. Run: go run ./cmd/nix-options-gen -schema schemas/config.v1.schema.json -output nix/generated-options.nix"
+            exit 1
+          fi
+
   build:
     needs: [lint, test]
     runs-on: macos-15
