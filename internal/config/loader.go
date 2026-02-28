@@ -132,7 +132,7 @@ func configPath() (string, error) {
 		baseDir = filepath.Join(home, ".config")
 	}
 	xdgPath := filepath.Join(baseDir, "mado", "config.yaml")
-	if _, err := os.Stat(xdgPath); err == nil {
+	if _, err := os.Stat(xdgPath); err == nil { //nolint:gosec // G703: xdgPath is from trusted XDG/home dirs, not user input
 		return xdgPath, nil
 	}
 
