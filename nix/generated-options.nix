@@ -1,5 +1,5 @@
 # AUTO-GENERATED from schemas/config.v1.schema.json
-# Do not edit manually. Run: go run ./cmd/nix-options-gen
+# Do not edit manually. Run: go run ./cmd/nix-options-gen -schema schemas/config.v1.schema.json -output nix/generated-options.nix
 { lib }:
 {
   options = {
