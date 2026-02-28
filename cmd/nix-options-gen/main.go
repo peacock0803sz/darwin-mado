@@ -87,7 +87,7 @@ func main() {
 func (g *generator) generate(schema *JSONSchema, schemaPath string) string {
 	var sb strings.Builder
 	sb.WriteString("# AUTO-GENERATED from " + schemaPath + "\n")
-	sb.WriteString("# Do not edit manually. Run: go run ./cmd/nix-options-gen\n")
+	sb.WriteString("# Do not edit manually. Run: go run ./cmd/nix-options-gen -schema schemas/config.v1.schema.json -output nix/generated-options.nix\n")
 	sb.WriteString("{ lib }:\n{\n  options = {\n")
 
 	for _, name := range sortedKeys(schema.Properties) {
@@ -358,6 +358,7 @@ func joinEnum(vals []string) string {
 func nixStr(s string) string {
 	s = strings.ReplaceAll(s, `\`, `\\`)
 	s = strings.ReplaceAll(s, `"`, `\"`)
+	s = strings.ReplaceAll(s, `${`, `\${`)
 	return `"` + s + `"`
 }
 
