@@ -45,6 +45,7 @@ func Default() Config {
 // Search order:
 //  1. $MADO_CONFIG environment variable
 //  2. $XDG_CONFIG_HOME/mado/config.yaml (defaults to ~/.config/mado/config.yaml)
+//  3. /etc/mado/config.yaml (system-level fallback written by nix-darwin module)
 func Load() (Config, error) {
 	cfg := Default()
 
@@ -111,6 +112,10 @@ func Load() (Config, error) {
 }
 
 // configPath returns the path to the configuration file.
+// Search order:
+//  1. $MADO_CONFIG environment variable
+//  2. $XDG_CONFIG_HOME/mado/config.yaml (defaults to ~/.config/mado/config.yaml)
+//  3. /etc/mado/config.yaml (system-level fallback, written by nix-darwin module)
 func configPath() (string, error) {
 	// 1. $MADO_CONFIG environment variable
 	if p := os.Getenv("MADO_CONFIG"); p != "" {
@@ -126,6 +131,17 @@ func configPath() (string, error) {
 		}
 		baseDir = filepath.Join(home, ".config")
 	}
+	xdgPath := filepath.Join(baseDir, "mado", "config.yaml")
+	if _, err := os.Stat(xdgPath); err == nil {
+		return xdgPath, nil
+	}
 
-	return filepath.Join(baseDir, "mado", "config.yaml"), nil
+	// 3. /etc/mado/config.yaml — system-level fallback (nix-darwin writes here)
+	const etcPath = "/etc/mado/config.yaml"
+	if _, err := os.Stat(etcPath); err == nil {
+		return etcPath, nil
+	}
+
+	// No config file found; return XDG path so callers see ErrNotExist
+	return xdgPath, nil
 }
