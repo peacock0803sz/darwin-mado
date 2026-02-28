@@ -199,6 +199,49 @@ func TestLoad_IgnoreAppsEmptyString(t *testing.T) {
 	}
 }
 
+func TestLoad_XDGConfigHome(t *testing.T) {
+	// Verify that $XDG_CONFIG_HOME/mado/config.yaml is discovered
+	// when $MADO_CONFIG is unset.
+	dir := t.TempDir()
+	madoDir := filepath.Join(dir, "mado")
+	if err := os.MkdirAll(madoDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfgFile := filepath.Join(madoDir, "config.yaml")
+	if err := os.WriteFile(cfgFile, []byte("format: json\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("MADO_CONFIG", "")
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Format != "json" {
+		t.Errorf("expected format json via XDG, got %q", cfg.Format)
+	}
+}
+
+func TestLoad_XDGFallbackToDefaults(t *testing.T) {
+	// When $MADO_CONFIG is unset and no config file exists under
+	// $XDG_CONFIG_HOME (or /etc/mado), Load should return defaults.
+	dir := t.TempDir()
+
+	t.Setenv("MADO_CONFIG", "")
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	def := config.Default()
+	if cfg.Timeout != def.Timeout || cfg.Format != def.Format {
+		t.Errorf("expected defaults, got timeout=%v format=%q", cfg.Timeout, cfg.Format)
+	}
+}
+
 func TestLoad_IgnoreAppsAbsent(t *testing.T) {
 	dir := t.TempDir()
 	cfgFile := filepath.Join(dir, "config.yaml")
