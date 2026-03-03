@@ -398,8 +398,10 @@ func (s *darwinService) ListWindows(ctx context.Context) ([]Window, error) {
 			spaceMap := buildSpaceMap(cid)
 
 			batchResult := C.cgs_copy_spaces_for_windows(cid, widArray)
+			if C.cf_dict_is_null(batchResult) == 0 {
+				defer C.cf_release_dict(batchResult) // release regardless of actual CF type
+			}
 			if C.cf_dict_is_null_or_wrong_type(batchResult) == 0 {
-				defer C.cf_release_dict(batchResult)
 				for i := range entries {
 					spaceIDs := C.cgs_window_space_ids(batchResult, C.uint32_t(entries[i].cgID))
 					if C.cf_array_is_null(spaceIDs) != 0 {
