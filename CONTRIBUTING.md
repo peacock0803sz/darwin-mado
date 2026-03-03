@@ -63,12 +63,13 @@ lipo -create -output mado.out mado-amd64.out mado-arm64.out
 
 ## Code Conventions
 
-- **AX API**: access only through the `WindowService` interface in `internal/ax/interface.go`. Direct calls are prohibited.
-- **cgo code**: confined to `internal/ax/darwin.go` with a `//go:build darwin` tag.
-- **Cobra commands**: constructor pattern using `NewRootCmd()`. Global variables are prohibited.
-- **JSON output**: must always include the `schema_version: 1` and `success` fields.
-- **AX operations**: must always be wrapped with `context.WithTimeout`.
-- **Formatting**: format with `gofumpt`, check with `golangci-lint`.
+- AX API -- access only through the `WindowService` interface in `internal/ax/interface.go`. Direct calls are prohibited.
+- cgo code -- confined to `internal/ax/darwin.go` with a `//go:build darwin` tag.
+- Cobra commands -- constructor pattern via `NewRootCmd()`. Global variables are prohibited.
+    - Exit codes follow the definitions in the "Exit Codes" section of [README.md](README.md).
+- JSON output -- must always include `schema_version: 1` and `success` fields.
+- AX operations -- must always be wrapped with `context.WithTimeout`.
+- Formatting -- format with `gofumpt`, lint with `golangci-lint`.
 
 ## Commit Conventions
 
