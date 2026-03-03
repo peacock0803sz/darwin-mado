@@ -365,13 +365,13 @@ func TestApply_DesktopFilter(t *testing.T) {
 		winDesktop  int
 		wantMatch   bool
 	}{
-		{nil, 1, true},           // no filter: always matches
-		{nil, -1, true},          // no filter: matches even unknown
-		{applyIntPtr(0), 0, true},  // rule=all-desktops, win=all-desktops: match
-		{applyIntPtr(0), 1, false}, // rule=all-desktops, win=desktop-1: no match
-		{applyIntPtr(2), 2, true},  // rule=2, win=2: match
-		{applyIntPtr(2), 0, true},  // rule=2, win=all-desktops: match (all-desktops windows are visible everywhere)
-		{applyIntPtr(2), 3, false}, // rule=2, win=3: no match
+		{nil, 1, true},              // no filter: always matches
+		{nil, -1, true},             // no filter: matches even unknown
+		{applyIntPtr(0), 0, true},   // rule=all-desktops, win=all-desktops: match
+		{applyIntPtr(0), 1, false},  // rule=all-desktops, win=desktop-1: no match
+		{applyIntPtr(2), 2, true},   // rule=2, win=2: match
+		{applyIntPtr(2), 0, true},   // rule=2, win=all-desktops: match (all-desktops windows are visible everywhere)
+		{applyIntPtr(2), 3, false},  // rule=2, win=3: no match
 		{applyIntPtr(2), -1, false}, // rule=2, win=unknown: no match
 	}
 

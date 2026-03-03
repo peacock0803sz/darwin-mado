@@ -189,10 +189,10 @@ func TestRecord_DesktopField(t *testing.T) {
 		desktop int
 		want    *int
 	}{
-		{-1, nil},   // unknown → no constraint
-		{0, intPtr(0)},  // all desktops
-		{1, intPtr(1)},  // desktop 1
-		{3, intPtr(3)},  // desktop 3
+		{-1, nil},      // unknown → no constraint
+		{0, intPtr(0)}, // all desktops
+		{1, intPtr(1)}, // desktop 1
+		{3, intPtr(3)}, // desktop 3
 	}
 
 	for _, tc := range cases {
