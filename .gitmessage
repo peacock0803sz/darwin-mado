@@ -1,4 +1,4 @@
-# Type commit message here. Write a short, imperative why the change was made, not how.
+# Type commit message here. Write a short, imperative summary of why the change was made, not how.
 # Ex. "Fix bug in user authentication" instead of "Fixed a bug in the user authentication module that caused login failures under certain conditions."
 # Keep the message concise and to the point, ideally under 50 characters for the subject line. If you need to provide more details, use the body of the commit message to explain the what and why of the change.
 # Use the present tense ("Add feature" not "Added feature") and the imperative mood ("Fix bug" not "Fixes bug" or "Fixed bug").
