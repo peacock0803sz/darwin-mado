@@ -356,3 +356,72 @@ func TestApply_IgnoredPlusPartialFailure(t *testing.T) {
 		t.Error("expected ignored result even with partial failure")
 	}
 }
+
+func applyIntPtr(v int) *int { return &v }
+
+func TestApply_DesktopFilter(t *testing.T) {
+	cases := []struct {
+		ruleDesktop *int
+		winDesktop  int
+		wantMatch   bool
+	}{
+		{nil, 1, true},              // no filter: always matches
+		{nil, -1, true},             // no filter: matches even unknown
+		{applyIntPtr(0), 0, true},   // rule=all-desktops, win=all-desktops: match
+		{applyIntPtr(0), 1, false},  // rule=all-desktops, win=desktop-1: no match
+		{applyIntPtr(2), 2, true},   // rule=2, win=2: match
+		{applyIntPtr(2), 0, true},   // rule=2, win=all-desktops: match (all-desktops windows are visible everywhere)
+		{applyIntPtr(2), 3, false},  // rule=2, win=3: no match
+		{applyIntPtr(2), -1, false}, // rule=2, win=unknown: no match
+	}
+
+	for _, tc := range cases {
+		windows := []ax.Window{
+			{AppName: "Code", Title: "win", PID: 1, State: ax.StateNormal, Width: 960, Height: 1080, Desktop: tc.winDesktop},
+		}
+		presets := []preset.Preset{{
+			Name: "test",
+			Rules: []preset.Rule{
+				{App: "Code", Desktop: tc.ruleDesktop, Position: []int{0, 0}, Size: []int{960, 1080}},
+			},
+		}}
+		svc := &ax.MockWindowService{Windows: windows}
+		outcome, err := preset.Apply(context.Background(), svc, presets, "test", nil)
+		if err != nil {
+			t.Fatalf("ruleDesktop=%v winDesktop=%d: unexpected error: %v", tc.ruleDesktop, tc.winDesktop, err)
+		}
+		if len(outcome.Results) != 1 {
+			t.Fatalf("ruleDesktop=%v winDesktop=%d: expected 1 result, got %d", tc.ruleDesktop, tc.winDesktop, len(outcome.Results))
+		}
+		gotMatch := len(outcome.Results[0].Affected) > 0
+		if gotMatch != tc.wantMatch {
+			t.Errorf("ruleDesktop=%v winDesktop=%d: match=%v, want %v", tc.ruleDesktop, tc.winDesktop, gotMatch, tc.wantMatch)
+		}
+	}
+}
+
+func TestApply_DesktopFilterSkipsUnknownDesktop(t *testing.T) {
+	windows := []ax.Window{
+		{AppName: "Code", Title: "win1", PID: 1, State: ax.StateNormal, Width: 960, Height: 1080, Desktop: -1},
+		{AppName: "Code", Title: "win2", PID: 1, State: ax.StateNormal, Width: 960, Height: 1080, Desktop: 2},
+	}
+	d := 2
+	presets := []preset.Preset{{
+		Name: "test",
+		Rules: []preset.Rule{
+			{App: "Code", Desktop: &d, Position: []int{0, 0}, Size: []int{960, 1080}},
+		},
+	}}
+	svc := &ax.MockWindowService{Windows: windows}
+	outcome, err := preset.Apply(context.Background(), svc, presets, "test", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(outcome.Results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(outcome.Results))
+	}
+	// Only Desktop=2 window should match; Desktop=-1 is skipped.
+	if len(outcome.Results[0].Affected) != 1 {
+		t.Errorf("affected = %d, want 1 (Desktop=-1 window should be skipped)", len(outcome.Results[0].Affected))
+	}
+}

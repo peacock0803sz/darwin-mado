@@ -181,3 +181,84 @@ func TestRecord_ScreenFilterNoMatch(t *testing.T) {
 		t.Errorf("len(rules) = %d, want 0", len(p.Rules))
 	}
 }
+
+func intPtr(v int) *int { return &v }
+
+func TestRecord_DesktopField(t *testing.T) {
+	cases := []struct {
+		desktop int
+		want    *int
+	}{
+		{-1, nil},      // unknown → no constraint
+		{0, intPtr(0)}, // all desktops
+		{1, intPtr(1)}, // desktop 1
+		{3, intPtr(3)}, // desktop 3
+	}
+
+	for _, tc := range cases {
+		svc := &ax.MockWindowService{
+			Windows: []ax.Window{
+				{AppName: "Code", Title: "main.go", PID: 1, X: 0, Y: 0, Width: 960, Height: 1080, State: ax.StateNormal, Desktop: tc.desktop},
+			},
+		}
+		p, err := Record(context.Background(), svc, "desktop-test", RecordOptions{})
+		if err != nil {
+			t.Fatalf("desktop=%d: unexpected error: %v", tc.desktop, err)
+		}
+		if len(p.Rules) != 1 {
+			t.Fatalf("desktop=%d: len(rules) = %d, want 1", tc.desktop, len(p.Rules))
+		}
+		got := p.Rules[0].Desktop
+		if tc.want == nil {
+			if got != nil {
+				t.Errorf("desktop=%d: Rule.Desktop = %v, want nil", tc.desktop, *got)
+			}
+		} else {
+			if got == nil {
+				t.Errorf("desktop=%d: Rule.Desktop = nil, want %d", tc.desktop, *tc.want)
+			} else if *got != *tc.want {
+				t.Errorf("desktop=%d: Rule.Desktop = %d, want %d", tc.desktop, *got, *tc.want)
+			}
+		}
+	}
+}
+
+func TestRecord_DesktopUnknownOmitted(t *testing.T) {
+	svc := &ax.MockWindowService{
+		Windows: []ax.Window{
+			{AppName: "Finder", Title: "Downloads", PID: 1, X: 0, Y: 0, Width: 800, Height: 600, State: ax.StateNormal, Desktop: -1},
+		},
+	}
+	p, err := Record(context.Background(), svc, "unknown-desktop", RecordOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(p.Rules) != 1 {
+		t.Fatalf("len(rules) = %d, want 1", len(p.Rules))
+	}
+	if p.Rules[0].Desktop != nil {
+		t.Errorf("Rule.Desktop = %v, want nil for Desktop=-1", *p.Rules[0].Desktop)
+	}
+}
+
+func TestRecord_MixedDesktops(t *testing.T) {
+	svc := &ax.MockWindowService{
+		Windows: []ax.Window{
+			{AppName: "Code", Title: "main.go", PID: 1, X: 0, Y: 0, Width: 960, Height: 1080, State: ax.StateNormal, Desktop: 1},
+			{AppName: "Code", Title: "test.go", PID: 1, X: 0, Y: 0, Width: 960, Height: 1080, State: ax.StateNormal, Desktop: 2},
+		},
+	}
+	p, err := Record(context.Background(), svc, "mixed", RecordOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(p.Rules) != 2 {
+		t.Fatalf("len(rules) = %d, want 2", len(p.Rules))
+	}
+	if p.Rules[0].Desktop == nil || *p.Rules[0].Desktop != 1 {
+		t.Errorf("rules[0].Desktop = %v, want 1", p.Rules[0].Desktop)
+	}
+	if p.Rules[1].Desktop == nil || *p.Rules[1].Desktop != 2 {
+		t.Errorf("rules[1].Desktop = %v, want 2", p.Rules[1].Desktop)
+	}
+}
