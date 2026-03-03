@@ -229,7 +229,7 @@ func TestRecord_DesktopUnknownOmitted(t *testing.T) {
 			{AppName: "Finder", Title: "Downloads", PID: 1, X: 0, Y: 0, Width: 800, Height: 600, State: ax.StateNormal, Desktop: -1},
 		},
 	}
-	p, err := Record(context.Background(), svc, "minimized", RecordOptions{})
+	p, err := Record(context.Background(), svc, "unknown-desktop", RecordOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
