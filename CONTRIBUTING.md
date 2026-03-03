@@ -52,7 +52,11 @@ Name all binaries `*.out` so they are covered by .gitignore.
 # Local build
 go build -o mado.out ./cmd/mado
 
-# Build for a specific architecture
+# Build for each architecture
+CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
+  SDKROOT=$(xcrun --sdk macosx --show-sdk-path) \
+  go build -o mado-amd64.out ./cmd/mado
+
 CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
   SDKROOT=$(xcrun --sdk macosx --show-sdk-path) \
   go build -o mado-arm64.out ./cmd/mado
