@@ -46,7 +46,7 @@ go test -tags integration ./...
 
 ## Build
 
-Name all binaries `*.out` so they are covered by .gitignore.
+Name all local binaries `*.out` so they are covered by .gitignore. CI uses its own naming (`mado-amd64`, `mado-arm64`, `mado`).
 
 ```bash
 # Local build
