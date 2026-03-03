@@ -1,11 +1,35 @@
-# Contributing
+# Contributing Guidelines
 
 ## Development Environment
 
+- Recommended: devShell via flake.nix (direnv optional)
 - Go 1.25+ (cgo enabled)
 - macOS 15 Sequoia+ (darwin/arm64 or darwin/amd64)
 - golangci-lint v2 (`brew install golangci-lint`)
 - gofumpt (`go install mvdan.cc/gofumpt@latest`)
+
+### Key Dependencies
+
+- Cobra (`github.com/spf13/cobra`) -- CLI framework
+- go.yaml.in/yaml/v4 -- YAML config parsing
+- encoding/json (stdlib) -- JSON output
+- SkyLight.framework (private, via dlsym) -- virtual desktop support
+- Nix (flake-parts, home-manager, nix-darwin) -- packaging modules
+- Config files: `~/.config/mado/config.yaml` or `$MADO_CONFIG`
+
+## Project Structure
+
+```text
+cmd/mado/          -- Entrypoint
+internal/ax/       -- AX API adapter (interface + darwin impl + mock)
+internal/config/   -- YAML config loader (XDG + $MADO_CONFIG)
+internal/window/   -- list/move business logic
+internal/output/   -- text/JSON formatter
+internal/cli/      -- Cobra subcommand definitions
+schemas/           -- JSON Schema (config.v1.schema.json) + example
+testdata/golden/   -- Golden files
+.github/workflows/ -- CI (lint/test/build)
+```
 
 ## Running Tests
 
