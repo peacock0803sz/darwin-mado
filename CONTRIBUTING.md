@@ -46,17 +46,19 @@ go test -tags integration ./...
 
 ## Build
 
+Name all binaries `*.out` so they are covered by .gitignore.
+
 ```bash
 # Local build
-go build ./cmd/mado
+go build -o mado.out ./cmd/mado
 
 # Build for a specific architecture
 CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
   SDKROOT=$(xcrun --sdk macosx --show-sdk-path) \
-  go build -o mado-arm64 ./cmd/mado
+  go build -o mado-arm64.out ./cmd/mado
 
 # Universal binary
-lipo -create -output mado mado-amd64 mado-arm64
+lipo -create -output mado.out mado-amd64.out mado-arm64.out
 ```
 
 ## Code Conventions
