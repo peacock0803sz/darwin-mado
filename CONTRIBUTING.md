@@ -46,20 +46,7 @@ lipo -create -output mado mado-amd64 mado-arm64
 
 ## Commit Conventions
 
-Use Emoji Prefixes so the type of change is visible at a glance in `git log --oneline`.
-
-| Emoji | Purpose |
-|-------|---------|
-| ✨ `:sparkles:` | New feature |
-| 🐛 `:bug:` | Bug fix |
-| 🔧 `:wrench:` | Configuration change |
-| 🎨 `:art:` | Code style / formatting |
-| ✅ `:white_check_mark:` | Adding tests |
-| 📝 `:memo:` | Documentation |
-| ♻️ `:recycle:` | Refactoring |
-| 🚧 `:construction:` | WIP |
-| ⚡ `:zap:` | Performance improvement |
-| 🔒 `:lock:` | Security / safety handling |
+Use Emoji Prefixes (ref: `.gitmessage`) so the type of change is visible at a glance in `git log --oneline`.
 
 Each commit must leave the build in a passing state. Do not commit when `go test ./...` is failing.
 
