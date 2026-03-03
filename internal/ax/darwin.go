@@ -213,6 +213,12 @@ int ax_set_size(AXUIElementRef win, double w, double h) {
 int cf_array_is_null(CFArrayRef a)       { return a == NULL ? 1 : 0; }
 int cf_string_is_null(CFStringRef s)     { return s == NULL ? 1 : 0; }
 int cf_dict_is_null(CFDictionaryRef d)   { return d == NULL ? 1 : 0; }
+// Type-safe null check: returns 1 if d is NULL or not actually a CFDictionary.
+static int cf_dict_is_null_or_wrong_type(CFDictionaryRef d) {
+    if (d == NULL) return 1;
+    if (CFGetTypeID((CFTypeRef)d) != CFDictionaryGetTypeID()) return 1;
+    return 0;
+}
 int cf_type_is_null(CFTypeRef t)         { return t == NULL ? 1 : 0; }
 int cstr_is_null(const char *s)          { return s == NULL ? 1 : 0; }
 
@@ -392,7 +398,7 @@ func (s *darwinService) ListWindows(ctx context.Context) ([]Window, error) {
 			spaceMap := buildSpaceMap(cid)
 
 			batchResult := C.cgs_copy_spaces_for_windows(cid, widArray)
-			if C.cf_dict_is_null(batchResult) == 0 {
+			if C.cf_dict_is_null_or_wrong_type(batchResult) == 0 {
 				defer C.cf_release_dict(batchResult)
 				for i := range entries {
 					spaceIDs := C.cgs_window_space_ids(batchResult, C.uint32_t(entries[i].cgID))
