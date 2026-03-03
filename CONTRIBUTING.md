@@ -79,7 +79,7 @@ Each commit must leave the build in a passing state. Do not commit when `go test
 
 ## Creating a Pull Request
 
-1. Branch name: `<issue-number>-<feature-name>` (e.g. `123-add-screen-filter`)
-2. PR title: concise description of the change (under 70 characters)
-3. Ensure CI (lint + test + build) passes entirely.
-4. For changes that require integration tests, verify them manually before opening the PR.
+1. Branch name: `<feature-name>` (e.g. `add-screen-filter`)
+2. PR title: concise description under 70 characters, with Emoji Prefix.
+3. CI must pass -- lint, test, and build.
+4. If integration tests are affected, verify them locally before opening the PR.
