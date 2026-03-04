@@ -38,7 +38,7 @@ func filterWindows(windows []ax.Window, opts ListOptions) []ax.Window {
 		if opts.AppIDFilter != "" && !strings.EqualFold(w.AppID, opts.AppIDFilter) {
 			continue
 		}
-		if IsIgnoredApp(w.AppName, opts.IgnoreApps) {
+		if IsIgnoredApp(w.AppName, w.AppID, opts.IgnoreApps) {
 			continue
 		}
 		if opts.ScreenFilter != "" && !MatchScreen(w, opts.ScreenFilter) {
@@ -64,11 +64,19 @@ func MatchDesktop(w ax.Window, filter int) bool {
 	return w.Desktop == filter
 }
 
-// IsIgnoredApp returns true if appName matches any entry in ignoreApps (case-insensitive).
-func IsIgnoredApp(appName string, ignoreApps []string) bool {
+// IsIgnoredApp returns true if the app matches any entry in ignoreApps.
+// Entries containing a dot are matched against appID (bundle identifier);
+// entries without a dot are matched against appName. Both are case-insensitive.
+func IsIgnoredApp(appName, appID string, ignoreApps []string) bool {
 	for _, ignored := range ignoreApps {
-		if strings.EqualFold(appName, ignored) {
-			return true
+		if strings.Contains(ignored, ".") {
+			if strings.EqualFold(appID, ignored) {
+				return true
+			}
+		} else {
+			if strings.EqualFold(appName, ignored) {
+				return true
+			}
 		}
 	}
 	return false

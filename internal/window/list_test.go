@@ -213,3 +213,61 @@ func TestList_AppFilterAndAppIDFilterMismatch(t *testing.T) {
 		t.Errorf("expected 0 windows (mismatched AND), got %d", len(windows))
 	}
 }
+
+func TestIsIgnoredApp_NameEntry(t *testing.T) {
+	// Entries without a dot match against AppName, not AppID
+	if !window.IsIgnoredApp("Safari", "com.apple.Safari", []string{"Safari"}) {
+		t.Error("expected Safari (name entry) to match AppName=Safari")
+	}
+	// Name entry must not accidentally match AppID
+	if window.IsIgnoredApp("Other", "com.apple.Safari", []string{"Safari"}) {
+		t.Error("name entry 'Safari' should not match AppName=Other")
+	}
+}
+
+func TestIsIgnoredApp_BundleIDEntry(t *testing.T) {
+	// Entries containing a dot match against AppID (bundle identifier)
+	if !window.IsIgnoredApp("Safari", "com.apple.Safari", []string{"com.apple.Safari"}) {
+		t.Error("expected com.apple.Safari (bundle-ID entry) to match AppID=com.apple.Safari")
+	}
+	// Bundle-ID entry must not accidentally match AppName
+	if window.IsIgnoredApp("com.apple.Safari", "other.bundle", []string{"com.apple.Safari"}) {
+		t.Error("bundle-ID entry should not match AppName even if AppName looks like a bundle ID")
+	}
+}
+
+func TestIsIgnoredApp_MixedList(t *testing.T) {
+	// Mixed list: one name entry, one bundle-ID entry
+	ignoreApps := []string{"Dock", "com.apple.Safari"}
+	// Dock matched by name entry
+	if !window.IsIgnoredApp("Dock", "com.apple.Dock", ignoreApps) {
+		t.Error("expected Dock to be ignored via name entry")
+	}
+	// Safari matched by bundle-ID entry
+	if !window.IsIgnoredApp("Safari", "com.apple.Safari", ignoreApps) {
+		t.Error("expected Safari to be ignored via bundle-ID entry")
+	}
+	// Terminal matched by neither entry
+	if window.IsIgnoredApp("Terminal", "com.apple.Terminal", ignoreApps) {
+		t.Error("Terminal should not be ignored")
+	}
+}
+
+func TestIsIgnoredApp_CaseInsensitive(t *testing.T) {
+	// Both name and bundle-ID matching must be case-insensitive
+	if !window.IsIgnoredApp("safari", "COM.APPLE.SAFARI", []string{"com.apple.Safari"}) {
+		t.Error("bundle-ID match should be case-insensitive")
+	}
+	if !window.IsIgnoredApp("SAFARI", "com.apple.Safari", []string{"safari"}) {
+		t.Error("name match should be case-insensitive")
+	}
+}
+
+func TestIsIgnoredApp_EmptyList(t *testing.T) {
+	if window.IsIgnoredApp("Safari", "com.apple.Safari", nil) {
+		t.Error("empty ignoreApps should never match")
+	}
+	if window.IsIgnoredApp("Safari", "com.apple.Safari", []string{}) {
+		t.Error("empty ignoreApps slice should never match")
+	}
+}

@@ -88,7 +88,8 @@ func Apply(ctx context.Context, svc ax.WindowService, presets []Preset, name str
 		kind, value := selectorOf(rule)
 
 		// Skip rules whose app is in the ignore list
-		if window.IsIgnoredApp(rule.App, ignoreApps) {
+		// For app_id rules, pass AppID so bundle-ID-style ignore entries are matched.
+		if window.IsIgnoredApp(rule.App, rule.AppID, ignoreApps) {
 			outcome.Results = append(outcome.Results, ApplyResult{
 				RuleIndex:     i,
 				SelectorKind:  kind,
