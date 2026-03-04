@@ -9,10 +9,10 @@ import (
 )
 
 var testWindows = []ax.Window{
-	{AppName: "Terminal", Title: "peacock — zsh", PID: 100, State: ax.StateNormal, ScreenID: 42, ScreenName: "Built-in Retina Display"},
-	{AppName: "Safari", Title: "GitHub", PID: 200, State: ax.StateNormal, ScreenID: 42, ScreenName: "Built-in Retina Display"},
-	{AppName: "Safari", Title: "Apple", PID: 200, State: ax.StateMinimized},
-	{AppName: "Finder", Title: "", PID: 300, State: ax.StateHidden},
+	{AppName: "Terminal", AppID: "com.apple.Terminal", Title: "peacock — zsh", PID: 100, State: ax.StateNormal, ScreenID: 42, ScreenName: "Built-in Retina Display"},
+	{AppName: "Safari", AppID: "com.apple.Safari", Title: "GitHub", PID: 200, State: ax.StateNormal, ScreenID: 42, ScreenName: "Built-in Retina Display"},
+	{AppName: "Safari", AppID: "com.apple.Safari", Title: "Apple", PID: 200, State: ax.StateMinimized},
+	{AppName: "Finder", AppID: "com.apple.finder", Title: "", PID: 300, State: ax.StateHidden},
 }
 
 func TestList_NoFilter(t *testing.T) {
@@ -152,5 +152,64 @@ func TestList_IgnoreAppsNonExistent(t *testing.T) {
 	}
 	if len(windows) != len(testWindows) {
 		t.Errorf("expected %d windows (non-existent ignored app), got %d", len(testWindows), len(windows))
+	}
+}
+
+func TestList_AppIDFilter(t *testing.T) {
+	tests := []struct {
+		name      string
+		filter    string
+		wantCount int
+	}{
+		{"exact match", "com.apple.Safari", 2},
+		{"case insensitive", "COM.APPLE.SAFARI", 2},
+		{"no match", "com.example.NoApp", 0},
+		{"single result", "com.apple.Terminal", 1},
+	}
+
+	svc := &ax.MockWindowService{Windows: testWindows}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := window.ListOptions{AppIDFilter: tt.filter}
+			windows, err := window.List(context.Background(), svc, opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(windows) != tt.wantCount {
+				t.Errorf("AppIDFilter=%q: expected %d windows, got %d", tt.filter, tt.wantCount, len(windows))
+			}
+		})
+	}
+}
+
+func TestList_AppFilterAndAppIDFilterAND(t *testing.T) {
+	// Both AppFilter and AppIDFilter must match (AND logic)
+	svc := &ax.MockWindowService{Windows: testWindows}
+	opts := window.ListOptions{
+		AppFilter:   "Safari",
+		AppIDFilter: "com.apple.Safari",
+	}
+	windows, err := window.List(context.Background(), svc, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(windows) != 2 {
+		t.Errorf("expected 2 windows (Safari AND com.apple.Safari), got %d", len(windows))
+	}
+}
+
+func TestList_AppFilterAndAppIDFilterMismatch(t *testing.T) {
+	// AppFilter matches but AppIDFilter does not → zero results
+	svc := &ax.MockWindowService{Windows: testWindows}
+	opts := window.ListOptions{
+		AppFilter:   "Safari",
+		AppIDFilter: "com.example.Other",
+	}
+	windows, err := window.List(context.Background(), svc, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(windows) != 0 {
+		t.Errorf("expected 0 windows (mismatched AND), got %d", len(windows))
 	}
 }

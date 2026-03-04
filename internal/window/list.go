@@ -12,6 +12,7 @@ import (
 // ListOptions holds filter options for the list command.
 type ListOptions struct {
 	AppFilter     string
+	AppIDFilter   string
 	ScreenFilter  string
 	IgnoreApps    []string
 	DesktopFilter int // 0 = no filter; N = only windows on desktop N (plus desktop=0 windows)
@@ -32,6 +33,9 @@ func filterWindows(windows []ax.Window, opts ListOptions) []ax.Window {
 	result := make([]ax.Window, 0, len(windows))
 	for _, w := range windows {
 		if opts.AppFilter != "" && !strings.EqualFold(w.AppName, opts.AppFilter) {
+			continue
+		}
+		if opts.AppIDFilter != "" && !strings.EqualFold(w.AppID, opts.AppIDFilter) {
 			continue
 		}
 		if IsIgnoredApp(w.AppName, opts.IgnoreApps) {

@@ -19,6 +19,7 @@ import (
 func newMoveCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 	var (
 		appFilter     string
+		appIDFilter   string
 		titleFilter   string
 		screenFilter  string
 		desktopFilter int
@@ -53,6 +54,7 @@ func newMoveCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 
 			opts := window.MoveOptions{
 				AppFilter:    appFilter,
+				AppIDFilter:  appIDFilter,
 				TitleFilter:  titleFilter,
 				ScreenFilter: screenFilter,
 				All:          all,
@@ -122,6 +124,7 @@ func newMoveCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&appFilter, "app", "", "filter by app name (case-insensitive, exact match)")
+	cmd.Flags().StringVar(&appIDFilter, "app-id", "", "filter by bundle identifier (case-insensitive, exact match)")
 	cmd.Flags().StringVar(&titleFilter, "title", "", "filter by title (case-insensitive, partial match)")
 	cmd.Flags().StringVar(&screenFilter, "screen", "", "filter by screen ID or name")
 	cmd.Flags().IntVar(&desktopFilter, "desktop", 0, "scope operation to desktop number (1-based, Mission Control order)")

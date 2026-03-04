@@ -15,6 +15,7 @@ import (
 // newListCmd creates the list subcommand (T023).
 func newListCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 	var appFilter string
+	var appIDFilter string
 	var screenFilter string
 	var desktopFilter int
 
@@ -38,12 +39,13 @@ func newListCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 
 			opts := window.ListOptions{
 				AppFilter:    appFilter,
+				AppIDFilter:  appIDFilter,
 				ScreenFilter: screenFilter,
 			}
-			// When --app is explicitly specified, bypass the ignore list.
+			// When --app or --app-id is explicitly specified, bypass the ignore list.
 			// The user's intent to inspect a specific app takes precedence
 			// over the ignore_apps config (FR-006).
-			if appFilter == "" {
+			if appFilter == "" && appIDFilter == "" {
 				opts.IgnoreApps = root.IgnoreApps
 			}
 			// Only apply desktop filter when explicitly specified.
@@ -69,6 +71,7 @@ func newListCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&appFilter, "app", "", "filter by app name (case-insensitive, exact match)")
+	cmd.Flags().StringVar(&appIDFilter, "app-id", "", "filter by bundle identifier (case-insensitive, exact match)")
 	cmd.Flags().StringVar(&screenFilter, "screen", "", "filter by screen ID or name (exact match)")
 	cmd.Flags().IntVar(&desktopFilter, "desktop", 0, "filter by desktop number (1-based, Mission Control order)")
 

@@ -10,10 +10,10 @@ import (
 )
 
 var moveTestWindows = []ax.Window{
-	{AppName: "Terminal", Title: "peacock — zsh", PID: 100, State: ax.StateNormal, Width: 800, Height: 600},
-	{AppName: "Safari", Title: "GitHub", PID: 200, State: ax.StateNormal, Width: 1440, Height: 900},
-	{AppName: "Safari", Title: "Apple", PID: 200, State: ax.StateNormal, Width: 1200, Height: 800},
-	{AppName: "Code", Title: "README.md", PID: 300, State: ax.StateFullscreen, Width: 1440, Height: 900},
+	{AppName: "Terminal", AppID: "com.apple.Terminal", Title: "peacock — zsh", PID: 100, State: ax.StateNormal, Width: 800, Height: 600},
+	{AppName: "Safari", AppID: "com.apple.Safari", Title: "GitHub", PID: 200, State: ax.StateNormal, Width: 1440, Height: 900},
+	{AppName: "Safari", AppID: "com.apple.Safari", Title: "Apple", PID: 200, State: ax.StateNormal, Width: 1200, Height: 800},
+	{AppName: "Code", AppID: "com.microsoft.VSCode", Title: "README.md", PID: 300, State: ax.StateFullscreen, Width: 1440, Height: 900},
 }
 
 func TestMove_Position(t *testing.T) {
@@ -199,6 +199,74 @@ func TestMove_TitleFilter(t *testing.T) {
 	}
 	if affected[0].Title != "GitHub" {
 		t.Errorf("expected title 'GitHub', got %q", affected[0].Title)
+	}
+}
+
+func TestMove_AppIDFilter(t *testing.T) {
+	svc := &ax.MockWindowService{Windows: moveTestWindows}
+	opts := window.MoveOptions{
+		AppIDFilter: "com.apple.Safari",
+		Position:    &window.Point{X: 50, Y: 50},
+		All:         true,
+	}
+	affected, err := window.Move(context.Background(), svc, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(affected) != 2 {
+		t.Errorf("expected 2 Safari windows by bundle ID, got %d", len(affected))
+	}
+}
+
+func TestMove_AppIDFilterCaseInsensitive(t *testing.T) {
+	svc := &ax.MockWindowService{Windows: moveTestWindows}
+	opts := window.MoveOptions{
+		AppIDFilter: "COM.APPLE.SAFARI",
+		Position:    &window.Point{X: 0, Y: 0},
+		All:         true,
+	}
+	affected, err := window.Move(context.Background(), svc, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(affected) != 2 {
+		t.Errorf("expected 2 Safari windows (case-insensitive bundle ID), got %d", len(affected))
+	}
+}
+
+func TestMove_AppIDFilterNotFound(t *testing.T) {
+	svc := &ax.MockWindowService{Windows: moveTestWindows}
+	opts := window.MoveOptions{
+		AppIDFilter: "com.example.NoApp",
+		Position:    &window.Point{X: 0, Y: 0},
+	}
+	_, err := window.Move(context.Background(), svc, opts)
+	if err == nil {
+		t.Fatal("expected NotFoundError, got nil")
+	}
+	var notFound *ax.NotFoundError
+	if !errors.As(err, &notFound) {
+		t.Fatalf("expected *ax.NotFoundError, got %T: %v", err, err)
+	}
+	if notFound.Query == "(no filter)" {
+		t.Error("buildQuery should include --app-id in error message")
+	}
+}
+
+func TestMove_AppFilterAndAppIDFilterAND(t *testing.T) {
+	svc := &ax.MockWindowService{Windows: moveTestWindows}
+	opts := window.MoveOptions{
+		AppFilter:   "Safari",
+		AppIDFilter: "com.apple.Safari",
+		Position:    &window.Point{X: 0, Y: 0},
+		All:         true,
+	}
+	affected, err := window.Move(context.Background(), svc, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(affected) != 2 {
+		t.Errorf("expected 2 windows (AND combination), got %d", len(affected))
 	}
 }
 

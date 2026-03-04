@@ -21,6 +21,7 @@ type Size struct {
 // MoveOptions holds the options for the move command.
 type MoveOptions struct {
 	AppFilter     string
+	AppIDFilter   string
 	TitleFilter   string
 	ScreenFilter  string
 	DesktopFilter int // 0 = no filter; N = only windows on desktop N (plus desktop=0 windows)
@@ -92,6 +93,9 @@ func filterForMove(windows []ax.Window, opts MoveOptions) []ax.Window {
 		if opts.AppFilter != "" && !strings.EqualFold(w.AppName, opts.AppFilter) {
 			continue
 		}
+		if opts.AppIDFilter != "" && !strings.EqualFold(w.AppID, opts.AppIDFilter) {
+			continue
+		}
 		if opts.TitleFilter != "" && !strings.Contains(strings.ToLower(w.Title), strings.ToLower(opts.TitleFilter)) {
 			continue
 		}
@@ -110,6 +114,9 @@ func buildQuery(opts MoveOptions) string {
 	parts := make([]string, 0)
 	if opts.AppFilter != "" {
 		parts = append(parts, `--app "`+opts.AppFilter+`"`)
+	}
+	if opts.AppIDFilter != "" {
+		parts = append(parts, `--app-id "`+opts.AppIDFilter+`"`)
 	}
 	if opts.TitleFilter != "" {
 		parts = append(parts, `--title "`+opts.TitleFilter+`"`)
