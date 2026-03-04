@@ -11,6 +11,7 @@ package ax
 #include <objc/runtime.h>
 #include <objc/message.h>
 #include <stdlib.h>
+#include <string.h>
 #include <dlfcn.h>
 #include <stdint.h>
 
