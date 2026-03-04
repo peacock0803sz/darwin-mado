@@ -4,6 +4,7 @@ package ax_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/peacock0803sz/mado/internal/ax"
@@ -45,14 +46,7 @@ func TestListWindows_AppIDPopulated(t *testing.T) {
 			continue
 		}
 		// A bundle ID must contain at least one dot (e.g. "com.apple.Safari").
-		found := false
-		for _, ch := range w.AppID {
-			if ch == '.' {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !strings.Contains(w.AppID, ".") {
 			t.Errorf("window %q (app=%q) has AppID %q with no dot; expected reverse-DNS format",
 				w.Title, w.AppName, w.AppID)
 		}
