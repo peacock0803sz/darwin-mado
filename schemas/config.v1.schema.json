@@ -42,12 +42,19 @@
             "minItems": 1,
             "items": {
               "type": "object",
-              "required": ["app"],
               "additionalProperties": false,
+              "oneOf": [
+                { "required": ["app"] },
+                { "required": ["app_id"] }
+              ],
               "properties": {
                 "app": {
                   "type": "string",
-                  "description": "Application name (case-insensitive exact match)"
+                  "description": "Application display name (case-insensitive exact match). Mutually exclusive with app_id."
+                },
+                "app_id": {
+                  "type": "string",
+                  "description": "macOS bundle identifier (case-insensitive exact match, e.g. com.apple.Safari). Mutually exclusive with app."
                 },
                 "title": {
                   "type": "string",
@@ -88,7 +95,7 @@
     },
     "ignore_apps": {
       "type": "array",
-      "description": "Application names to exclude from list output and preset matching",
+      "description": "Applications to exclude from list output and preset matching. Entries containing a dot (.) are matched against bundle identifiers (e.g. com.apple.Safari); others are matched against display names (e.g. Safari).",
       "items": {
         "type": "string",
         "minLength": 1

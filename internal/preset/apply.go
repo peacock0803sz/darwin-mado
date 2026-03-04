@@ -29,12 +29,22 @@ func (e *AllFullscreenError) Error() string {
 
 // ApplyResult holds the outcome of applying a single rule.
 type ApplyResult struct {
-	RuleIndex int
-	AppFilter string
-	Affected  []ax.Window
-	Skipped   bool
-	Reason    string
-	Err       error
+	RuleIndex     int
+	SelectorKind  string // "app" or "app_id"
+	SelectorValue string // the app name or bundle identifier
+	Affected      []ax.Window
+	Skipped       bool
+	Reason        string
+	Err           error
+}
+
+// selectorOf returns the selector kind and value for a rule.
+// It returns ("app_id", rule.AppID) when AppID is set, else ("app", rule.App).
+func selectorOf(r Rule) (kind, value string) {
+	if r.AppID != "" {
+		return "app_id", r.AppID
+	}
+	return "app", r.App
 }
 
 // ApplyOutcome holds the aggregate result of applying a preset.
@@ -75,13 +85,16 @@ func Apply(ctx context.Context, svc ax.WindowService, presets []Preset, name str
 	totalFullscreen := 0
 
 	for i, rule := range target.Rules {
+		kind, value := selectorOf(rule)
+
 		// Skip rules whose app is in the ignore list
 		if window.IsIgnoredApp(rule.App, ignoreApps) {
 			outcome.Results = append(outcome.Results, ApplyResult{
-				RuleIndex: i,
-				AppFilter: rule.App,
-				Skipped:   true,
-				Reason:    "ignored",
+				RuleIndex:     i,
+				SelectorKind:  kind,
+				SelectorValue: value,
+				Skipped:       true,
+				Reason:        "ignored",
 			})
 			continue
 		}
@@ -100,10 +113,11 @@ func Apply(ctx context.Context, svc ax.WindowService, presets []Preset, name str
 
 		if len(candidates) == 0 {
 			outcome.Results = append(outcome.Results, ApplyResult{
-				RuleIndex: i,
-				AppFilter: rule.App,
-				Skipped:   true,
-				Reason:    "no_match",
+				RuleIndex:     i,
+				SelectorKind:  kind,
+				SelectorValue: value,
+				Skipped:       true,
+				Reason:        "no_match",
 			})
 			continue
 		}
@@ -123,10 +137,11 @@ func Apply(ctx context.Context, svc ax.WindowService, presets []Preset, name str
 
 		if len(normal) == 0 && fullscreenCount > 0 {
 			outcome.Results = append(outcome.Results, ApplyResult{
-				RuleIndex: i,
-				AppFilter: rule.App,
-				Skipped:   true,
-				Reason:    "fullscreen",
+				RuleIndex:     i,
+				SelectorKind:  kind,
+				SelectorValue: value,
+				Skipped:       true,
+				Reason:        "fullscreen",
 			})
 			// フルスクリーンでもappliedセットに追加
 			for _, w := range candidates {
@@ -161,10 +176,11 @@ func Apply(ctx context.Context, svc ax.WindowService, presets []Preset, name str
 		}
 
 		outcome.Results = append(outcome.Results, ApplyResult{
-			RuleIndex: i,
-			AppFilter: rule.App,
-			Affected:  ruleAffected,
-			Err:       ruleErr,
+			RuleIndex:     i,
+			SelectorKind:  kind,
+			SelectorValue: value,
+			Affected:      ruleAffected,
+			Err:           ruleErr,
 		})
 	}
 
@@ -210,9 +226,15 @@ func filterForRule(windows []ax.Window, rule Rule) []ax.Window {
 	lowerRuleTitle := strings.ToLower(rule.Title)
 
 	for _, w := range windows {
-		// app: case-insensitive exact match
-		if !strings.EqualFold(w.AppName, rule.App) {
-			continue
+		// app / app_id: case-insensitive exact match (mutually exclusive)
+		if rule.AppID != "" {
+			if !strings.EqualFold(w.AppID, rule.AppID) {
+				continue
+			}
+		} else {
+			if !strings.EqualFold(w.AppName, rule.App) {
+				continue
+			}
 		}
 		// title: case-insensitive partial match
 		if rule.Title != "" && !strings.Contains(strings.ToLower(w.Title), lowerRuleTitle) {

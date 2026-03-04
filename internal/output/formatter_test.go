@@ -272,15 +272,17 @@ func TestPrintPresetApply(t *testing.T) {
 		Preset:        "coding",
 		Applied: []output.PresetApplyAffected{
 			{
-				RuleIndex: 0,
-				AppFilter: "Code",
+				RuleIndex:     0,
+				SelectorKind:  "app",
+				SelectorValue: "Code",
 				Affected: []ax.Window{
 					{AppName: "Code", Title: "main.go", X: 0, Y: 0, Width: 960, Height: 1080},
 				},
 			},
 			{
-				RuleIndex: 1,
-				AppFilter: "Terminal",
+				RuleIndex:     1,
+				SelectorKind:  "app",
+				SelectorValue: "Terminal",
 				Affected: []ax.Window{
 					{AppName: "Terminal", Title: "zsh", X: 960, Y: 0, Width: 960, Height: 1080},
 				},

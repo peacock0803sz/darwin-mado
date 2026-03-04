@@ -43,9 +43,14 @@ func Record(ctx context.Context, svc ax.WindowService, name string, opts RecordO
 	rules := make([]Rule, 0, len(normal))
 	for _, w := range normal {
 		r := Rule{
-			App:      w.AppName,
 			Position: []int{w.X, w.Y},
 			Size:     []int{w.Width, w.Height},
+		}
+		// Prefer bundle identifier; fall back to app display name when unavailable.
+		if w.AppID != "" {
+			r.AppID = w.AppID
+		} else {
+			r.App = w.AppName
 		}
 		if appCount[w.AppName] > 1 {
 			r.Title = w.Title

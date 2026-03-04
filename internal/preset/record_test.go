@@ -241,6 +241,52 @@ func TestRecord_DesktopUnknownOmitted(t *testing.T) {
 	}
 }
 
+func TestRecord_AppIDDefault(t *testing.T) {
+	// When window has AppID, the recorded rule should use app_id, not app
+	svc := &ax.MockWindowService{
+		Windows: []ax.Window{
+			{AppName: "Safari", AppID: "com.apple.Safari", Title: "GitHub", PID: 1, X: 0, Y: 0, Width: 1440, Height: 900, State: ax.StateNormal},
+		},
+	}
+	p, err := Record(context.Background(), svc, "browse", RecordOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(p.Rules) != 1 {
+		t.Fatalf("len(rules) = %d, want 1", len(p.Rules))
+	}
+	r := p.Rules[0]
+	if r.AppID != "com.apple.Safari" {
+		t.Errorf("rule.AppID = %q, want %q", r.AppID, "com.apple.Safari")
+	}
+	if r.App != "" {
+		t.Errorf("rule.App = %q, want empty when AppID is set", r.App)
+	}
+}
+
+func TestRecord_AppIDFallback(t *testing.T) {
+	// When window has no AppID, the recorded rule should use app display name
+	svc := &ax.MockWindowService{
+		Windows: []ax.Window{
+			{AppName: "UnknownApp", AppID: "", Title: "window", PID: 1, X: 0, Y: 0, Width: 800, Height: 600, State: ax.StateNormal},
+		},
+	}
+	p, err := Record(context.Background(), svc, "fallback", RecordOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(p.Rules) != 1 {
+		t.Fatalf("len(rules) = %d, want 1", len(p.Rules))
+	}
+	r := p.Rules[0]
+	if r.App != "UnknownApp" {
+		t.Errorf("rule.App = %q, want %q (fallback when AppID empty)", r.App, "UnknownApp")
+	}
+	if r.AppID != "" {
+		t.Errorf("rule.AppID = %q, want empty for fallback", r.AppID)
+	}
+}
+
 func TestRecord_MixedDesktops(t *testing.T) {
 	svc := &ax.MockWindowService{
 		Windows: []ax.Window{

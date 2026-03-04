@@ -120,16 +120,18 @@ func (f *Formatter) PrintError(code int, message string, candidates []ax.Window)
 
 // PresetApplyAffected represents a rule's affected windows in apply output.
 type PresetApplyAffected struct {
-	RuleIndex int         `json:"rule_index"`
-	AppFilter string      `json:"app_filter"`
-	Affected  []ax.Window `json:"affected"`
+	RuleIndex     int         `json:"rule_index"`
+	SelectorKind  string      `json:"selector_kind"`
+	SelectorValue string      `json:"selector_value"`
+	Affected      []ax.Window `json:"affected"`
 }
 
 // PresetApplySkipped represents a skipped rule in apply output.
 type PresetApplySkipped struct {
-	RuleIndex int    `json:"rule_index"`
-	AppFilter string `json:"app_filter"`
-	Reason    string `json:"reason"`
+	RuleIndex     int    `json:"rule_index"`
+	SelectorKind  string `json:"selector_kind"`
+	SelectorValue string `json:"selector_value"`
+	Reason        string `json:"reason"`
 }
 
 // PresetApplyResponse is the JSON output for preset apply.
@@ -187,7 +189,7 @@ func (f *Formatter) printPresetApplyText(resp PresetApplyResponse) error {
 		}
 	}
 	for _, s := range resp.Skipped {
-		fmt.Fprintf(f.out, "Skipped (%s): %s\n", s.Reason, s.AppFilter) //nolint:errcheck
+		fmt.Fprintf(f.out, "Skipped (%s): --%s %q\n", s.Reason, s.SelectorKind, s.SelectorValue) //nolint:errcheck
 	}
 	return nil
 }

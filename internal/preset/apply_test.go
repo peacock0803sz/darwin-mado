@@ -263,8 +263,8 @@ func TestApply_IgnoredAppNonIgnoredStillApplies(t *testing.T) {
 	for _, r := range outcome.Results {
 		if !r.Skipped && len(r.Affected) > 0 {
 			appliedCount++
-			if r.AppFilter != "Terminal" {
-				t.Errorf("expected applied rule for Terminal, got %q", r.AppFilter)
+			if r.SelectorValue != "Terminal" {
+				t.Errorf("expected applied rule for Terminal, got %q", r.SelectorValue)
 			}
 		}
 	}
@@ -317,7 +317,7 @@ func TestApply_IgnoredReasonInResult(t *testing.T) {
 	// Verify first result (Code) has correct fields for JSON output
 	found := false
 	for _, r := range outcome.Results {
-		if r.AppFilter == "Code" {
+		if r.SelectorValue == "Code" {
 			found = true
 			if !r.Skipped {
 				t.Error("expected Skipped=true for ignored app")
