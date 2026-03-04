@@ -31,3 +31,19 @@ presets:
       - app: Notes
         position: [1280, 0]
         size: [640, 1080]
+
+  # Use app_id (bundle identifier) instead of app (display name) for stable rules
+  # that survive app renames or localization changes.
+  - name: browse
+    description: "Safari full-screen left monitor"
+    rules:
+      - app_id: com.apple.Safari
+        position: [0, 0]
+        size: [1920, 1080]
+
+# Applications to exclude from list output and preset matching.
+# Entries containing a dot (.) are matched against bundle identifiers;
+# entries without a dot are matched against display names.
+ignore_apps:
+  - Dock
+  - com.apple.controlcenter
