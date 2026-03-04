@@ -11,7 +11,7 @@
     ignore_apps = lib.mkOption {
       type = lib.types.nullOr (lib.types.listOf (lib.types.str));
       default = null;
-      description = "Application names to exclude from list output and preset matching";
+      description = "Applications to exclude from list output and preset matching. Entries containing a dot (.) are matched against bundle identifiers (e.g. com.apple.Safari); others are matched against display names (e.g. Safari).";
     };
     presets = lib.mkOption {
       type = lib.types.nullOr (lib.types.listOf (lib.types.submodule {
@@ -29,8 +29,14 @@
             type = lib.types.listOf (lib.types.submodule {
               options = {
                 app = lib.mkOption {
-                  type = lib.types.str;
-                  description = "Application name (case-insensitive exact match)";
+                  type = lib.types.nullOr (lib.types.str);
+                  default = null;
+                  description = "Application display name (case-insensitive exact match). Mutually exclusive with app_id.";
+                };
+                app_id = lib.mkOption {
+                  type = lib.types.nullOr (lib.types.str);
+                  default = null;
+                  description = "macOS bundle identifier (case-insensitive exact match, e.g. com.apple.Safari). Mutually exclusive with app.";
                 };
                 desktop = lib.mkOption {
                   type = lib.types.nullOr (lib.types.ints.unsigned);
