@@ -13,6 +13,7 @@ import (
 var multiScreenWindows = []ax.Window{
 	{
 		AppName:    "Terminal",
+		AppID:      "com.apple.Terminal",
 		Title:      "peacock — zsh — 80×24",
 		PID:        1234,
 		X:          100,
@@ -26,6 +27,7 @@ var multiScreenWindows = []ax.Window{
 	},
 	{
 		AppName:    "Safari",
+		AppID:      "com.apple.Safari",
 		Title:      "GitHub",
 		PID:        5678,
 		X:          -1920,
@@ -39,6 +41,7 @@ var multiScreenWindows = []ax.Window{
 	},
 	{
 		AppName:  "Finder",
+		AppID:    "com.apple.finder",
 		Title:    "",
 		PID:      300,
 		Width:    800,
@@ -52,6 +55,7 @@ var multiScreenWindows = []ax.Window{
 var sampleWindows = []ax.Window{
 	{
 		AppName:    "Terminal",
+		AppID:      "com.apple.Terminal",
 		Title:      "peacock — zsh — 80×24",
 		PID:        1234,
 		X:          100,
@@ -65,6 +69,7 @@ var sampleWindows = []ax.Window{
 	},
 	{
 		AppName:    "Safari",
+		AppID:      "com.apple.Safari",
 		Title:      "GitHub",
 		PID:        5678,
 		X:          0,
@@ -78,6 +83,7 @@ var sampleWindows = []ax.Window{
 	},
 	{
 		AppName:  "Safari",
+		AppID:    "com.apple.Safari",
 		Title:    "Apple",
 		PID:      5678,
 		Width:    1200,
