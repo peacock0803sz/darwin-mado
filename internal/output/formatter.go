@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/peacock0803sz/mado/internal/ax"
@@ -189,7 +190,7 @@ func (f *Formatter) printPresetApplyText(resp PresetApplyResponse) error {
 		}
 	}
 	for _, s := range resp.Skipped {
-		fmt.Fprintf(f.out, "Skipped (%s): --%s %q\n", s.Reason, s.SelectorKind, s.SelectorValue) //nolint:errcheck
+		fmt.Fprintf(f.out, "Skipped (%s): --%s %q\n", s.Reason, strings.ReplaceAll(s.SelectorKind, "_", "-"), s.SelectorValue) //nolint:errcheck
 	}
 	return nil
 }

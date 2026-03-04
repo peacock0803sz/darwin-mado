@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v4"
@@ -73,7 +74,7 @@ func emitIgnoredWarnings(w io.Writer, outcome *preset.ApplyOutcome) {
 	}
 	for _, r := range outcome.Results {
 		if r.Reason == "ignored" {
-			_, _ = fmt.Fprintf(w, "warning: preset rule[%d] (--%s: %q) skipped: app is in ignore_apps list\n", r.RuleIndex, r.SelectorKind, r.SelectorValue)
+			_, _ = fmt.Fprintf(w, "warning: preset rule[%d] (--%s: %q) skipped: app is in ignore_apps list\n", r.RuleIndex, strings.ReplaceAll(r.SelectorKind, "_", "-"), r.SelectorValue)
 		}
 	}
 }
