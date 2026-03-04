@@ -14,6 +14,7 @@ const (
 // Window represents an individual application window on macOS.
 type Window struct {
 	AppName    string      `json:"app_name"`
+	AppID      string      `json:"app_id"`
 	Title      string      `json:"title"`
 	PID        uint32      `json:"pid"`
 	X          int         `json:"x"`

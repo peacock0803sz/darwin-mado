@@ -3,12 +3,15 @@
 package ax
 
 /*
-#cgo LDFLAGS: -framework ApplicationServices -framework CoreGraphics -framework CoreFoundation
+#cgo LDFLAGS: -framework ApplicationServices -framework CoreGraphics -framework CoreFoundation -framework AppKit
 
 #include <ApplicationServices/ApplicationServices.h>
 #include <CoreGraphics/CoreGraphics.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <objc/runtime.h>
+#include <objc/message.h>
 #include <stdlib.h>
+#include <string.h>
 #include <dlfcn.h>
 #include <stdint.h>
 
@@ -225,6 +228,24 @@ int cstr_is_null(const char *s)          { return s == NULL ? 1 : 0; }
 // Safe CFRelease helpers: avoid Go-side CFArrayRef→CFTypeRef cast which can
 // produce a NULL pointer on ARM64 due to cgo opaque-struct reinterpretation.
 void cf_release_array(CFArrayRef a)      { if (a) CFRelease(a); }
+
+// Retrieve the macOS bundle identifier for a process by PID.
+// Uses the Objective-C runtime to call NSRunningApplication.bundleIdentifier.
+// Returns a malloc'd C string that the caller must free, or NULL on failure.
+static char* bundle_id_for_pid(pid_t pid) {
+    Class cls = objc_getClass("NSRunningApplication");
+    if (!cls) return NULL;
+    SEL runSel = sel_registerName("runningApplicationWithProcessIdentifier:");
+    id app = ((id(*)(Class, SEL, pid_t))objc_msgSend)(cls, runSel, pid);
+    if (!app) return NULL;
+    SEL bidSel = sel_registerName("bundleIdentifier");
+    id nsStr = ((id(*)(id, SEL))objc_msgSend)(app, bidSel);
+    if (!nsStr) return NULL;
+    SEL utf8Sel = sel_registerName("UTF8String");
+    const char *utf8 = ((const char*(*)(id, SEL))objc_msgSend)(nsStr, utf8Sel);
+    if (!utf8) return NULL;
+    return strdup(utf8);
+}
 */
 import "C"
 
@@ -357,6 +378,9 @@ func (s *darwinService) ListWindows(ctx context.Context) ([]Window, error) {
 		}
 	}()
 
+	// Cache bundle IDs per PID (NSRunningApplication lookup is per-app, not per-window)
+	bundleIDCache := make(map[uint32]string)
+
 	// CGWindowList has one entry per window.
 	// When a PID has multiple windows, the AX-side index must be tracked.
 	// AX API window list takes precedence; CGWindowList is used as supplemental info.
@@ -375,7 +399,7 @@ func (s *darwinService) ListWindows(ctx context.Context) ([]Window, error) {
 		}
 		dict := C.CFDictionaryRef(dictRef)
 
-		entry := windowFromCGInfo(dict, screens, axCache, pidWindowIndex)
+		entry := windowFromCGInfo(dict, screens, axCache, bundleIDCache, pidWindowIndex)
 		if entry == nil {
 			continue
 		}
@@ -529,6 +553,7 @@ func windowFromCGInfo(
 	dict C.CFDictionaryRef,
 	screens []Screen,
 	axCache map[uint32]C.CFArrayRef,
+	bundleIDCache map[uint32]string,
 	pidWindowIndex map[uint32]int,
 ) *windowEntry {
 	// Extract CGWindowID via kCGWindowNumber (needed for CGS Space lookup).
@@ -608,9 +633,21 @@ func windowFromCGInfo(
 		screenName = ""
 	}
 
+	// Retrieve bundle ID from cache (one lookup per PID, not per window)
+	bundleID, ok := bundleIDCache[appPID]
+	if !ok {
+		cs := C.bundle_id_for_pid(C.pid_t(appPID))
+		if cs != nil {
+			bundleID = C.GoString(cs)
+			C.free(unsafe.Pointer(cs))
+		}
+		bundleIDCache[appPID] = bundleID
+	}
+
 	return &windowEntry{
 		win: &Window{
 			AppName:    appName,
+			AppID:      bundleID,
 			Title:      title,
 			PID:        appPID,
 			X:          x,

@@ -10,7 +10,8 @@ type Preset struct {
 
 // Rule is a single window operation instruction within a preset.
 type Rule struct {
-	App    string `json:"app"                yaml:"app"`
+	App    string `json:"app,omitempty"       yaml:"app,omitempty"`
+	AppID  string `json:"app_id,omitempty"    yaml:"app_id,omitempty"`
 	Title  string `json:"title,omitempty"     yaml:"title,omitempty"`
 	Screen string `json:"screen,omitempty"    yaml:"screen,omitempty"`
 	// Desktop scopes this rule to a specific desktop (1-based Mission Control order).

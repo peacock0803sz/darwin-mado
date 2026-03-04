@@ -68,11 +68,17 @@ func ValidatePresets(presets []Preset) []ValidationError {
 		for j, r := range p.Rules {
 			ruleField := fmt.Sprintf("rules[%d]", j)
 
-			if r.App == "" {
+			if r.App == "" && r.AppID == "" {
 				errs = append(errs, ValidationError{
 					Preset:  name,
 					Field:   ruleField,
-					Message: "app is required",
+					Message: "exactly one of app or app_id is required",
+				})
+			} else if r.App != "" && r.AppID != "" {
+				errs = append(errs, ValidationError{
+					Preset:  name,
+					Field:   ruleField,
+					Message: "app and app_id are mutually exclusive; set exactly one",
 				})
 			}
 

@@ -277,3 +277,50 @@ func TestLoad_IgnoreAppsDuplicates(t *testing.T) {
 		t.Fatalf("expected 2 ignore_apps (duplicates accepted), got %d", len(cfg.IgnoreApps))
 	}
 }
+
+func TestLoad_PresetAppIDRule(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "config.yaml")
+	content := "presets:\n  - name: bundle\n    rules:\n      - app_id: com.apple.Safari\n        position: [0, 0]\n"
+	if err := os.WriteFile(cfgFile, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("MADO_CONFIG", cfgFile)
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("unexpected error for app_id-only rule: %v", err)
+	}
+	if len(cfg.Presets) != 1 || len(cfg.Presets[0].Rules) != 1 {
+		t.Fatalf("expected 1 preset with 1 rule, got %d presets", len(cfg.Presets))
+	}
+	r := cfg.Presets[0].Rules[0]
+	if r.AppID != "com.apple.Safari" {
+		t.Errorf("rule.AppID = %q, want %q", r.AppID, "com.apple.Safari")
+	}
+	if r.App != "" {
+		t.Errorf("rule.App = %q, want empty for app_id rule", r.App)
+	}
+}
+
+func TestLoad_IgnoreAppsBundleID(t *testing.T) {
+	// Bundle IDs (containing dots) are valid ignore_apps entries
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "config.yaml")
+	content := "ignore_apps:\n  - com.apple.Safari\n  - Dock\n"
+	if err := os.WriteFile(cfgFile, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("MADO_CONFIG", cfgFile)
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("unexpected error for bundle ID in ignore_apps: %v", err)
+	}
+	if len(cfg.IgnoreApps) != 2 {
+		t.Fatalf("expected 2 ignore_apps, got %d", len(cfg.IgnoreApps))
+	}
+	if cfg.IgnoreApps[0] != "com.apple.Safari" {
+		t.Errorf("ignore_apps[0] = %q, want %q", cfg.IgnoreApps[0], "com.apple.Safari")
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/peacock0803sz/mado/internal/ax"
@@ -120,16 +121,18 @@ func (f *Formatter) PrintError(code int, message string, candidates []ax.Window)
 
 // PresetApplyAffected represents a rule's affected windows in apply output.
 type PresetApplyAffected struct {
-	RuleIndex int         `json:"rule_index"`
-	AppFilter string      `json:"app_filter"`
-	Affected  []ax.Window `json:"affected"`
+	RuleIndex     int         `json:"rule_index"`
+	SelectorKind  string      `json:"selector_kind"`
+	SelectorValue string      `json:"selector_value"`
+	Affected      []ax.Window `json:"affected"`
 }
 
 // PresetApplySkipped represents a skipped rule in apply output.
 type PresetApplySkipped struct {
-	RuleIndex int    `json:"rule_index"`
-	AppFilter string `json:"app_filter"`
-	Reason    string `json:"reason"`
+	RuleIndex     int    `json:"rule_index"`
+	SelectorKind  string `json:"selector_kind"`
+	SelectorValue string `json:"selector_value"`
+	Reason        string `json:"reason"`
 }
 
 // PresetApplyResponse is the JSON output for preset apply.
@@ -187,7 +190,7 @@ func (f *Formatter) printPresetApplyText(resp PresetApplyResponse) error {
 		}
 	}
 	for _, s := range resp.Skipped {
-		fmt.Fprintf(f.out, "Skipped (%s): %s\n", s.Reason, s.AppFilter) //nolint:errcheck
+		fmt.Fprintf(f.out, "Skipped (%s): --%s %q\n", s.Reason, strings.ReplaceAll(s.SelectorKind, "_", "-"), s.SelectorValue) //nolint:errcheck
 	}
 	return nil
 }
@@ -298,7 +301,7 @@ func (f *Formatter) printWindowsText(windows []ax.Window) error {
 
 	// align columns with tabwriter (min width 8, tab width 1, padding 2)
 	tw := tabwriter.NewWriter(f.out, 8, 1, 2, ' ', 0)
-	fmt.Fprintln(tw, "APP_NAME\tTITLE\tX\tY\tWIDTH\tHEIGHT\tSTATE\tDESKTOP\tSCREEN") //nolint:errcheck // tabwriter defers errors to Flush()
+	fmt.Fprintln(tw, "APP_NAME\tAPP_ID\tTITLE\tX\tY\tWIDTH\tHEIGHT\tSTATE\tDESKTOP\tSCREEN") //nolint:errcheck // tabwriter defers errors to Flush()
 
 	for _, w := range windows {
 		screenName := truncate(w.ScreenName, 20)
@@ -307,8 +310,8 @@ func (f *Formatter) printWindowsText(windows []ax.Window) error {
 		}
 		title := truncate(w.Title, 32)
 		desktop := formatDesktop(w.Desktop)
-		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%d\t%d\t%s\t%s\t%s\n", //nolint:errcheck // tabwriter defers errors to Flush()
-			w.AppName, title, w.X, w.Y, w.Width, w.Height, w.State, desktop, screenName)
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%d\t%d\t%d\t%d\t%s\t%s\t%s\n", //nolint:errcheck // tabwriter defers errors to Flush()
+			w.AppName, w.AppID, title, w.X, w.Y, w.Width, w.Height, w.State, desktop, screenName)
 	}
 	return tw.Flush()
 }

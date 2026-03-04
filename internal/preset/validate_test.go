@@ -73,12 +73,46 @@ func TestValidatePresets_MissingApp(t *testing.T) {
 	}
 	found := false
 	for _, e := range errs {
-		if e.Message == "app is required" {
+		if e.Message == "exactly one of app or app_id is required" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected app required error")
+		t.Error("expected app/app_id required error")
+	}
+}
+
+func TestValidatePresets_AppIDValid(t *testing.T) {
+	presets := []preset.Preset{{
+		Name: "bundle-id",
+		Rules: []preset.Rule{
+			{AppID: "com.apple.Safari", Position: []int{0, 0}},
+		},
+	}}
+	if errs := preset.ValidatePresets(presets); errs != nil {
+		t.Errorf("expected no errors for app_id-only rule, got %v", errs)
+	}
+}
+
+func TestValidatePresets_BothAppAndAppID(t *testing.T) {
+	presets := []preset.Preset{{
+		Name: "broken",
+		Rules: []preset.Rule{
+			{App: "Safari", AppID: "com.apple.Safari", Position: []int{0, 0}},
+		},
+	}}
+	errs := preset.ValidatePresets(presets)
+	if errs == nil {
+		t.Fatal("expected validation error for both app and app_id set, got nil")
+	}
+	found := false
+	for _, e := range errs {
+		if e.Message == "app and app_id are mutually exclusive; set exactly one" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected mutual exclusivity error")
 	}
 }
 

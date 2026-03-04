@@ -263,8 +263,8 @@ func TestApply_IgnoredAppNonIgnoredStillApplies(t *testing.T) {
 	for _, r := range outcome.Results {
 		if !r.Skipped && len(r.Affected) > 0 {
 			appliedCount++
-			if r.AppFilter != "Terminal" {
-				t.Errorf("expected applied rule for Terminal, got %q", r.AppFilter)
+			if r.SelectorValue != "Terminal" {
+				t.Errorf("expected applied rule for Terminal, got %q", r.SelectorValue)
 			}
 		}
 	}
@@ -317,7 +317,7 @@ func TestApply_IgnoredReasonInResult(t *testing.T) {
 	// Verify first result (Code) has correct fields for JSON output
 	found := false
 	for _, r := range outcome.Results {
-		if r.AppFilter == "Code" {
+		if r.SelectorValue == "Code" {
 			found = true
 			if !r.Skipped {
 				t.Error("expected Skipped=true for ignored app")
@@ -354,6 +354,77 @@ func TestApply_IgnoredPlusPartialFailure(t *testing.T) {
 	}
 	if !hasIgnored {
 		t.Error("expected ignored result even with partial failure")
+	}
+}
+
+func TestApply_IgnoredByNameMatchesAppIDRule(t *testing.T) {
+	// ignore_apps has a display name entry "Code", but the preset rule uses app_id.
+	// The ignore should still work because matching is done against actual window fields.
+	windows := []ax.Window{
+		{AppName: "Code", AppID: "com.microsoft.VSCode", Title: "main.go", PID: 100, State: ax.StateNormal, Width: 800, Height: 600},
+		{AppName: "Terminal", AppID: "com.apple.Terminal", Title: "zsh", PID: 200, State: ax.StateNormal, Width: 800, Height: 600},
+	}
+	presets := []preset.Preset{
+		{
+			Name: "coding",
+			Rules: []preset.Rule{
+				{AppID: "com.microsoft.VSCode", Position: []int{0, 0}, Size: []int{960, 1080}},
+				{App: "Terminal", Position: []int{960, 0}, Size: []int{960, 1080}},
+			},
+		},
+	}
+	svc := &ax.MockWindowService{Windows: windows}
+	ignoreApps := []string{"Code"} // display name, no dot
+	outcome, err := preset.Apply(context.Background(), svc, presets, "coding", ignoreApps)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var ignoredCount, appliedCount int
+	for _, r := range outcome.Results {
+		if r.Skipped && r.Reason == "ignored" {
+			ignoredCount++
+		}
+		if !r.Skipped && len(r.Affected) > 0 {
+			appliedCount++
+		}
+	}
+	if ignoredCount != 1 {
+		t.Errorf("expected 1 ignored rule (app_id matched by display name), got %d", ignoredCount)
+	}
+	if appliedCount != 1 {
+		t.Errorf("expected 1 applied rule (Terminal), got %d", appliedCount)
+	}
+}
+
+func TestApply_IgnoredByBundleIDMatchesAppRule(t *testing.T) {
+	// ignore_apps has a bundle ID entry, but the preset rule uses app (display name).
+	windows := []ax.Window{
+		{AppName: "Code", AppID: "com.microsoft.VSCode", Title: "main.go", PID: 100, State: ax.StateNormal, Width: 800, Height: 600},
+	}
+	presets := []preset.Preset{
+		{
+			Name: "coding",
+			Rules: []preset.Rule{
+				{App: "Code", Position: []int{0, 0}, Size: []int{960, 1080}},
+			},
+		},
+	}
+	svc := &ax.MockWindowService{Windows: windows}
+	ignoreApps := []string{"com.microsoft.VSCode"} // bundle ID with dot
+	outcome, err := preset.Apply(context.Background(), svc, presets, "coding", ignoreApps)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var ignoredCount int
+	for _, r := range outcome.Results {
+		if r.Skipped && r.Reason == "ignored" {
+			ignoredCount++
+		}
+	}
+	if ignoredCount != 1 {
+		t.Errorf("expected 1 ignored rule (app matched by bundle ID), got %d", ignoredCount)
 	}
 }
 

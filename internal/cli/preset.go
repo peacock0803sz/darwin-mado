@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v4"
@@ -73,7 +74,7 @@ func emitIgnoredWarnings(w io.Writer, outcome *preset.ApplyOutcome) {
 	}
 	for _, r := range outcome.Results {
 		if r.Reason == "ignored" {
-			_, _ = fmt.Fprintf(w, "warning: preset rule[%d] (app: %q) skipped: app is in ignore_apps list\n", r.RuleIndex, r.AppFilter)
+			_, _ = fmt.Fprintf(w, "warning: preset rule[%d] (--%s: %q) skipped: app is in ignore_apps list\n", r.RuleIndex, strings.ReplaceAll(r.SelectorKind, "_", "-"), r.SelectorValue)
 		}
 	}
 }
@@ -128,15 +129,17 @@ func buildApplyResponse(name string, outcome *preset.ApplyOutcome, success bool,
 	for _, r := range outcome.Results {
 		if r.Skipped {
 			resp.Skipped = append(resp.Skipped, output.PresetApplySkipped{
-				RuleIndex: r.RuleIndex,
-				AppFilter: r.AppFilter,
-				Reason:    r.Reason,
+				RuleIndex:     r.RuleIndex,
+				SelectorKind:  r.SelectorKind,
+				SelectorValue: r.SelectorValue,
+				Reason:        r.Reason,
 			})
 		} else if len(r.Affected) > 0 {
 			resp.Applied = append(resp.Applied, output.PresetApplyAffected{
-				RuleIndex: r.RuleIndex,
-				AppFilter: r.AppFilter,
-				Affected:  r.Affected,
+				RuleIndex:     r.RuleIndex,
+				SelectorKind:  r.SelectorKind,
+				SelectorValue: r.SelectorValue,
+				Affected:      r.Affected,
 			})
 		}
 	}
