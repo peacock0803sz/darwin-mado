@@ -87,19 +87,6 @@ func Apply(ctx context.Context, svc ax.WindowService, presets []Preset, name str
 	for i, rule := range target.Rules {
 		kind, value := selectorOf(rule)
 
-		// Skip rules whose app is in the ignore list
-		// For app_id rules, pass AppID so bundle-ID-style ignore entries are matched.
-		if window.IsIgnoredApp(rule.App, rule.AppID, ignoreApps) {
-			outcome.Results = append(outcome.Results, ApplyResult{
-				RuleIndex:     i,
-				SelectorKind:  kind,
-				SelectorValue: value,
-				Skipped:       true,
-				Reason:        "ignored",
-			})
-			continue
-		}
-
 		// ルールに基づいてウィンドウをフィルタリング
 		matches := filterForRule(windows, rule)
 
@@ -122,6 +109,27 @@ func Apply(ctx context.Context, svc ax.WindowService, presets []Preset, name str
 			})
 			continue
 		}
+
+		// Filter out windows whose app is in the ignore list.
+		// Check against actual window fields (AppName + AppID) so that
+		// ignore entries match regardless of whether the rule uses app or app_id.
+		var nonIgnored []ax.Window
+		for _, w := range candidates {
+			if !window.IsIgnoredApp(w.AppName, w.AppID, ignoreApps) {
+				nonIgnored = append(nonIgnored, w)
+			}
+		}
+		if len(nonIgnored) == 0 {
+			outcome.Results = append(outcome.Results, ApplyResult{
+				RuleIndex:     i,
+				SelectorKind:  kind,
+				SelectorValue: value,
+				Skipped:       true,
+				Reason:        "ignored",
+			})
+			continue
+		}
+		candidates = nonIgnored
 
 		// フルスクリーンウィンドウの除外
 		var normal []ax.Window
