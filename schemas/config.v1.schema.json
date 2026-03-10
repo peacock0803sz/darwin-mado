@@ -93,6 +93,11 @@
         }
       }
     },
+    "verbose": {
+      "type": "boolean",
+      "description": "Enable verbose diagnostic output to stderr",
+      "default": false
+    },
     "ignore_apps": {
       "type": "array",
       "description": "Applications to exclude from list output and preset matching. Entries containing a dot (.) are matched against bundle identifiers (e.g. com.apple.Safari); others are matched against display names (e.g. Safari).",

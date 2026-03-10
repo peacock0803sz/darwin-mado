@@ -21,6 +21,7 @@ type Config struct {
 	Format     string
 	Presets    []preset.Preset
 	IgnoreApps []string
+	Verbose    bool
 }
 
 // rawConfig is an intermediate structure for YAML parsing.
@@ -30,6 +31,13 @@ type rawConfig struct {
 	Format     string          `yaml:"format"`
 	Presets    []preset.Preset `yaml:"presets"`
 	IgnoreApps []string        `yaml:"ignore_apps"`
+	Verbose    bool            `yaml:"verbose"`
+}
+
+// LoadResult wraps the parsed Config with metadata for verbose diagnostics.
+type LoadResult struct {
+	Config     Config
+	SourcePath string // resolved config file path; empty when defaults used
 }
 
 // Default returns the default configuration.
@@ -46,32 +54,32 @@ func Default() Config {
 //  1. $MADO_CONFIG environment variable
 //  2. $XDG_CONFIG_HOME/mado/config.yaml (defaults to ~/.config/mado/config.yaml)
 //  3. /etc/mado/config.yaml (system-level fallback written by nix-darwin module)
-func Load() (Config, error) {
+func Load() (LoadResult, error) {
 	cfg := Default()
 
 	path, err := configPath()
 	if err != nil {
-		return cfg, nil // fall back to defaults if path resolution fails
+		return LoadResult{Config: cfg}, nil // fall back to defaults if path resolution fails
 	}
 
 	data, err := os.ReadFile(path) //nolint:gosec // G304: path is resolved from trusted config locations (XDG or $MADO_CONFIG)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return cfg, nil // no file = use default values
+			return LoadResult{Config: cfg}, nil // no file = use default values
 		}
-		return cfg, fmt.Errorf("config file read error: %w", err)
+		return LoadResult{Config: cfg}, fmt.Errorf("config file read error: %w", err)
 	}
 
 	var raw rawConfig
 	if err := yaml.Unmarshal(data, &raw); err != nil {
-		return cfg, fmt.Errorf("config file parse error (%s): %w", path, err)
+		return LoadResult{Config: cfg}, fmt.Errorf("config file parse error (%s): %w", path, err)
 	}
 
 	// convert timeout string (e.g. "5s") to time.Duration
 	if raw.Timeout != "" {
 		d, err := time.ParseDuration(raw.Timeout)
 		if err != nil {
-			return cfg, fmt.Errorf("config: invalid timeout %q: %w", raw.Timeout, err)
+			return LoadResult{Config: cfg}, fmt.Errorf("config: invalid timeout %q: %w", raw.Timeout, err)
 		}
 		cfg.Timeout = d
 	}
@@ -82,7 +90,7 @@ func Load() (Config, error) {
 		case "text", "json":
 			cfg.Format = raw.Format
 		default:
-			return cfg, fmt.Errorf("config: invalid format %q (must be \"text\" or \"json\")", raw.Format)
+			return LoadResult{Config: cfg}, fmt.Errorf("config: invalid format %q (must be \"text\" or \"json\")", raw.Format)
 		}
 	}
 
@@ -93,7 +101,7 @@ func Load() (Config, error) {
 			for _, vErr := range verrs {
 				errMsgs = append(errMsgs, vErr.Error())
 			}
-			return cfg, fmt.Errorf("config (%s): preset validation failed: %s", path, strings.Join(errMsgs, "; "))
+			return LoadResult{Config: cfg}, fmt.Errorf("config (%s): preset validation failed: %s", path, strings.Join(errMsgs, "; "))
 		}
 		cfg.Presets = raw.Presets
 	}
@@ -102,13 +110,15 @@ func Load() (Config, error) {
 	for i, app := range raw.IgnoreApps {
 		trimmed := strings.TrimSpace(app)
 		if trimmed == "" {
-			return cfg, fmt.Errorf("config: ignore_apps[%d]: empty app name is not allowed", i)
+			return LoadResult{Config: cfg}, fmt.Errorf("config: ignore_apps[%d]: empty app name is not allowed", i)
 		}
 		raw.IgnoreApps[i] = trimmed
 	}
 	cfg.IgnoreApps = raw.IgnoreApps
 
-	return cfg, nil
+	cfg.Verbose = raw.Verbose
+
+	return LoadResult{Config: cfg, SourcePath: path}, nil
 }
 
 // configPath returns the path to the configuration file.
