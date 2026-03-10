@@ -78,7 +78,7 @@
       description = "AX operation timeout (e.g. 5s, 10s, 1m)";
     };
     verbose = lib.mkOption {
-      type = lib.types.nullOr (lib.types.str);
+      type = lib.types.nullOr (lib.types.bool);
       default = null;
       description = "Enable verbose diagnostic output to stderr";
     };
