@@ -9,6 +9,9 @@ timeout: 5s
 # Default output format: text | json (default: text)
 format: text
 
+# Enable verbose diagnostic output to stderr (default: false)
+verbose: false
+
 # Window layout presets
 presets:
   - name: coding
