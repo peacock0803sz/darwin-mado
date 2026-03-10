@@ -90,6 +90,21 @@ func newMoveCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 				opts.Size = &window.Size{W: w, H: h}
 			}
 
+			// verbose: log move target
+			stderr := cmd.ErrOrStderr()
+			if opts.Position != nil {
+				Verbosef(root.Verbose, stderr, "target position: %d,%d", opts.Position.X, opts.Position.Y)
+			}
+			if opts.Size != nil {
+				Verbosef(root.Verbose, stderr, "target size: %dx%d", opts.Size.W, opts.Size.H)
+			}
+			if appFilter != "" {
+				Verbosef(root.Verbose, stderr, "filter: app=%q", appFilter)
+			}
+			if appIDFilter != "" {
+				Verbosef(root.Verbose, stderr, "filter: app-id=%q", appIDFilter)
+			}
+
 			affected, err := window.Move(ctx, svc, opts)
 			if err != nil {
 				if errors.Is(err, context.DeadlineExceeded) {
@@ -119,6 +134,7 @@ func newMoveCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 				}
 			}
 
+			Verbosef(root.Verbose, stderr, "moved %d window(s)", affected)
 			return f.PrintMoveResult(affected)
 		},
 	}

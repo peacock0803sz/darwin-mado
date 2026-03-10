@@ -141,6 +141,9 @@ func (g *generator) buildType(name string, prop *JSONSchema, nullable bool, inde
 // nullable indicates whether the field is optional (affects assertion null guards).
 func (g *generator) baseType(name string, prop *JSONSchema, nullable bool, indent int, ctx assertCtx) string {
 	switch prop.Type {
+	case "boolean":
+		return "lib.types.bool"
+
 	case "string":
 		if len(prop.Enum) > 0 {
 			return "lib.types.enum [ " + joinEnum(prop.Enum) + " ]"
@@ -264,6 +267,9 @@ func (g *generator) itemType(listName string, items *JSONSchema, listNullable bo
 // primitiveType returns a Nix type for a primitive schema (no assertions).
 func (g *generator) primitiveType(prop *JSONSchema) string {
 	switch prop.Type {
+	case "boolean":
+		return "lib.types.bool"
+
 	case "integer":
 		if prop.Minimum != nil {
 			if *prop.Minimum >= 1 {

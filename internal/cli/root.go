@@ -2,6 +2,8 @@
 package cli
 
 import (
+	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -19,6 +21,7 @@ type RootFlags struct {
 	Timeout    time.Duration
 	Presets    []preset.Preset
 	IgnoreApps []string
+	Verbose    bool
 }
 
 // NewRootCmd creates the root command.
@@ -45,20 +48,36 @@ Commands that do not require permission: help, version, completion, preset list,
 			if skipConfigLoad(cmd) {
 				return nil
 			}
-			cfg, err := config.Load()
+			result, err := config.Load()
 			if err != nil {
 				f := output.New(newOutputFormat(flags.Format), os.Stdout, os.Stderr)
 				_ = f.PrintError(3, err.Error(), nil)
 				os.Exit(3)
 			}
+			cfg := result.Config
 			if !cmd.Root().PersistentFlags().Changed("format") {
 				flags.Format = cfg.Format
 			}
 			if !cmd.Root().PersistentFlags().Changed("timeout") {
 				flags.Timeout = cfg.Timeout
 			}
+			if !cmd.Root().PersistentFlags().Changed("verbose") {
+				flags.Verbose = cfg.Verbose
+			}
 			flags.Presets = cfg.Presets
 			flags.IgnoreApps = cfg.IgnoreApps
+
+			// verbose: config loading diagnostics
+			stderr := cmd.ErrOrStderr()
+			if result.SourcePath != "" {
+				Verbosef(flags.Verbose, stderr, "config loaded from %s", result.SourcePath)
+			} else {
+				Verbosef(flags.Verbose, stderr, "no config file found, using defaults")
+			}
+			Verbosef(flags.Verbose, stderr, "format=%s timeout=%s verbose=%t", flags.Format, flags.Timeout, flags.Verbose)
+			if len(flags.IgnoreApps) > 0 {
+				Verbosef(flags.Verbose, stderr, "ignore_apps=%v", flags.IgnoreApps)
+			}
 			return nil
 		},
 	}
@@ -66,6 +85,7 @@ Commands that do not require permission: help, version, completion, preset list,
 	// global flags (CLI flags override config file values)
 	root.PersistentFlags().StringVar(&flags.Format, "format", def.Format, "output format (text|json)")
 	root.PersistentFlags().DurationVar(&flags.Timeout, "timeout", def.Timeout, "AX operation timeout")
+	root.PersistentFlags().BoolVar(&flags.Verbose, "verbose", false, "enable verbose diagnostic output to stderr")
 
 	root.AddCommand(newListCmd(svc, flags))
 	root.AddCommand(newMoveCmd(svc, flags))
@@ -96,4 +116,14 @@ func newOutputFormat(s string) output.Format {
 		return output.FormatJSON
 	}
 	return output.FormatText
+}
+
+// Verbosef writes a formatted diagnostic message to w when verbose is true.
+// Messages are prefixed with "verbose: " and terminated with a newline.
+// Write failures are silently ignored to avoid affecting exit codes.
+func Verbosef(verbose bool, w io.Writer, format string, args ...any) {
+	if !verbose {
+		return
+	}
+	_, _ = fmt.Fprintf(w, "verbose: "+format+"\n", args...)
 }
