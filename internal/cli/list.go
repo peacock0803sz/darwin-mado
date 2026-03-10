@@ -57,6 +57,21 @@ func newListCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 				opts.DesktopFilter = desktopFilter
 			}
 
+			// verbose: log filter options
+			stderr := cmd.ErrOrStderr()
+			if appFilter != "" {
+				Verbosef(root.Verbose, stderr, "filter: app=%q", appFilter)
+			}
+			if appIDFilter != "" {
+				Verbosef(root.Verbose, stderr, "filter: app-id=%q", appIDFilter)
+			}
+			if screenFilter != "" {
+				Verbosef(root.Verbose, stderr, "filter: screen=%q", screenFilter)
+			}
+			if len(opts.IgnoreApps) > 0 {
+				Verbosef(root.Verbose, stderr, "ignore_apps=%v", opts.IgnoreApps)
+			}
+
 			windows, err := window.List(ctx, svc, opts)
 			if err != nil {
 				if errors.Is(err, context.DeadlineExceeded) {
@@ -66,6 +81,7 @@ func newListCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 				return err
 			}
 
+			Verbosef(root.Verbose, stderr, "found %d windows", len(windows))
 			return f.PrintWindows(windows)
 		},
 	}

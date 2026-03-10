@@ -54,10 +54,29 @@ func newPresetApplyCmd(svc ax.WindowService, flags *RootFlags) *cobra.Command {
 			ctx, cancel := context.WithTimeout(cmd.Context(), flags.Timeout)
 			defer cancel()
 
+			// verbose: log preset apply
+			stderr := cmd.ErrOrStderr()
+			Verbosef(flags.Verbose, stderr, "applying preset %q", name)
+			for _, p := range flags.Presets {
+				if p.Name == name {
+					Verbosef(flags.Verbose, stderr, "preset %q has %d rule(s)", name, len(p.Rules))
+					break
+				}
+			}
+
 			outcome, err := preset.Apply(ctx, svc, flags.Presets, name, flags.IgnoreApps)
 
-			// stderr警告: ignoreされたルールをユーザーに通知
-			emitIgnoredWarnings(cmd.ErrOrStderr(), outcome)
+			// verbose: log rule match results
+			if outcome != nil {
+				for _, r := range outcome.Results {
+					if len(r.Affected) > 0 {
+						Verbosef(flags.Verbose, stderr, "rule[%d] matched %d window(s) for %s %q", r.RuleIndex, len(r.Affected), r.SelectorKind, r.SelectorValue)
+					}
+				}
+			}
+
+			// warn about rules skipped due to ignore_apps
+			emitIgnoredWarnings(stderr, outcome)
 			if err != nil {
 				return handleApplyError(f, err, outcome)
 			}
