@@ -103,8 +103,9 @@ func Apply(ctx context.Context, svc ax.WindowService, presets []Preset, name str
 	for i, rule := range target.Rules {
 		kind, value := selectorOf(rule)
 
-		// Resolve screen filter before anything else so unresolvable or ambiguous
-		// selectors short-circuit to a Skip result without hitting AX.
+		// Resolve screen filter before per-rule matching so unresolvable or
+		// ambiguous selectors short-circuit to a Skip result without performing
+		// any window mutations.
 		if rule.Screen != "" {
 			screens, err := loadScreens()
 			if err != nil {
