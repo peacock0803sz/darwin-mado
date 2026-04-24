@@ -60,6 +60,11 @@ func Record(ctx context.Context, svc ax.WindowService, name string, opts RecordO
 			d := w.Desktop
 			r.Desktop = &d
 		}
+		// Pin to the physical display by stable UUID when available. Leaving
+		// Screen empty when UUID is empty prevents hard-pinning to transient IDs.
+		if w.ScreenUUID != "" {
+			r.Screen = w.ScreenUUID
+		}
 		rules = append(rules, r)
 	}
 
