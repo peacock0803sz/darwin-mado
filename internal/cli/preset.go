@@ -238,7 +238,7 @@ func newPresetRecCmd(svc ax.WindowService, flags *RootFlags) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&screen, "screen", "", "record only windows on the specified screen (name or ID)")
+	cmd.Flags().StringVar(&screen, "screen", "", "record only windows on the specified screen (stable UUID, localized name, or transient numeric ID; see `mado screen list`)")
 
 	return cmd
 }
