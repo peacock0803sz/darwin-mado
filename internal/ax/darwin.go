@@ -15,6 +15,11 @@ package ax
 #include <dlfcn.h>
 #include <stdint.h>
 
+// libobjc autorelease pool primitives. Forward-declared so we don't need to
+// pull in <objc/NSObject.h>, which drags in additional Obj-C headers.
+extern void* objc_autoreleasePoolPush(void);
+extern void  objc_autoreleasePoolPop(void*);
+
 // --- CGS Private API (SkyLight.framework via dlsym) ---
 
 #define kCGSAllSpacesMask 0x7
@@ -257,12 +262,18 @@ typedef void* obj_id_t;
 // Lookup the NSScreen.localizedName for a given CGDirectDisplayID.
 // Iterates [NSScreen screens] and matches on deviceDescription[@"NSScreenNumber"].
 // Returns a malloc'd C string the caller must free, or NULL if not found.
+//
+// All Obj-C calls inside autorelease pool so autoreleased NSArray/NSString/
+// NSDictionary/NSNumber instances are drained when the function returns.
 static char* display_localized_name(CGDirectDisplayID displayID) {
+    void *pool = objc_autoreleasePoolPush();
+    char *result = NULL;
+
     Class nsScreenCls = objc_getClass("NSScreen");
-    if (!nsScreenCls) return NULL;
+    if (!nsScreenCls) goto done;
     SEL screensSel = sel_registerName("screens");
     obj_id_t screensArr = ((obj_id_t(*)(Class, SEL))objc_msgSend)(nsScreenCls, screensSel);
-    if (!screensArr) return NULL;
+    if (!screensArr) goto done;
 
     SEL countSel = sel_registerName("count");
     long count = ((long(*)(obj_id_t, SEL))objc_msgSend)(screensArr, countSel);
@@ -289,27 +300,42 @@ static char* display_localized_name(CGDirectDisplayID displayID) {
         if (!nameStr) continue;
         const char *utf8 = ((const char*(*)(obj_id_t, SEL))objc_msgSend)(nameStr, utf8Sel);
         if (!utf8) continue;
-        return strdup(utf8);
+        // strdup before pool pop: utf8 is backed by an autoreleased NSString.
+        result = strdup(utf8);
+        break;
     }
-    return NULL;
+
+done:
+    objc_autoreleasePoolPop(pool);
+    return result;
 }
 
 // Retrieve the macOS bundle identifier for a process by PID.
 // Uses the Objective-C runtime to call NSRunningApplication.bundleIdentifier.
 // Returns a malloc'd C string that the caller must free, or NULL on failure.
+//
+// Called once per window during ListWindows, so wrap in an autorelease pool
+// to drain autoreleased NSRunningApplication/NSString each iteration.
 static char* bundle_id_for_pid(pid_t pid) {
+    void *pool = objc_autoreleasePoolPush();
+    char *result = NULL;
+
     Class cls = objc_getClass("NSRunningApplication");
-    if (!cls) return NULL;
+    if (!cls) goto done;
     SEL runSel = sel_registerName("runningApplicationWithProcessIdentifier:");
     id app = ((id(*)(Class, SEL, pid_t))objc_msgSend)(cls, runSel, pid);
-    if (!app) return NULL;
+    if (!app) goto done;
     SEL bidSel = sel_registerName("bundleIdentifier");
     id nsStr = ((id(*)(id, SEL))objc_msgSend)(app, bidSel);
-    if (!nsStr) return NULL;
+    if (!nsStr) goto done;
     SEL utf8Sel = sel_registerName("UTF8String");
     const char *utf8 = ((const char*(*)(id, SEL))objc_msgSend)(nsStr, utf8Sel);
-    if (!utf8) return NULL;
-    return strdup(utf8);
+    if (!utf8) goto done;
+    result = strdup(utf8);
+
+done:
+    objc_autoreleasePoolPop(pool);
+    return result;
 }
 */
 import "C"
