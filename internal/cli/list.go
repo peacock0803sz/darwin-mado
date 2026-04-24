@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
@@ -14,9 +15,12 @@ import (
 )
 
 // resolveScreenFilterErr converts a user-provided --screen value into a
-// canonical filter string that window.MatchScreen stage-1 hits. Returns:
-//   - filter == ""       → ("", nil)
-//   - resolvable          → (uuid | name, nil)
+// canonical filter string that window.MatchScreen resolves unambiguously.
+// Returns the UUID (stage-1) when present; otherwise the decimal ScreenID
+// (stage-3). The stage-2 name match is intentionally skipped to avoid
+// re-introducing ambiguity when multiple displays share a localized name.
+//   - filter == ""        → ("", nil)
+//   - resolvable          → (uuid | decimal-id, nil)
 //   - unresolved/ambiguous → ("", error from screen package)
 //   - AX list failure     → ("", wrapped error)
 func resolveScreenFilterErr(ctx context.Context, svc ax.WindowService, filter string) (string, error) {
@@ -34,8 +38,7 @@ func resolveScreenFilterErr(ctx context.Context, svc ax.WindowService, filter st
 	if s.UUID != "" {
 		return s.UUID, nil
 	}
-	// Fallback: resolved screen without UUID — use the name for stage-2 match.
-	return s.Name, nil
+	return strconv.FormatUint(uint64(s.ID), 10), nil
 }
 
 // resolveScreenFilter calls resolveScreenFilterErr and translates errors
