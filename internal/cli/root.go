@@ -41,7 +41,7 @@ func NewRootCmd(svc ax.WindowService) *cobra.Command {
 		Long: `mado — a CLI tool for managing macOS windows.
 
 Commands that require Accessibility permission: list, move, preset apply, preset rec
-Commands that do not require permission: help, version, completion, preset list, preset show, preset validate`,
+Commands that do not require permission: help, version, completion, screen list, preset list, preset show, preset validate`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
@@ -90,6 +90,7 @@ Commands that do not require permission: help, version, completion, preset list,
 	root.AddCommand(newListCmd(svc, flags))
 	root.AddCommand(newMoveCmd(svc, flags))
 	root.AddCommand(newPresetCmd(svc, flags))
+	root.AddCommand(newScreenCmd(svc, flags))
 	root.AddCommand(newVersionCmd())
 	root.AddCommand(newCompletionCmd(root))
 

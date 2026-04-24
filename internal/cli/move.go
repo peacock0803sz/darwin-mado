@@ -52,11 +52,12 @@ func newMoveCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 				os.Exit(2)
 			}
 
+			resolvedScreen := resolveScreenFilter(ctx, svc, f, screenFilter)
 			opts := window.MoveOptions{
 				AppFilter:    appFilter,
 				AppIDFilter:  appIDFilter,
 				TitleFilter:  titleFilter,
-				ScreenFilter: screenFilter,
+				ScreenFilter: resolvedScreen,
 				All:          all,
 			}
 			// Only apply desktop filter when explicitly specified.
@@ -142,7 +143,7 @@ func newMoveCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 	cmd.Flags().StringVar(&appFilter, "app", "", "filter by app name (case-insensitive, exact match)")
 	cmd.Flags().StringVar(&appIDFilter, "app-id", "", "filter by bundle identifier (case-insensitive, exact match)")
 	cmd.Flags().StringVar(&titleFilter, "title", "", "filter by title (case-insensitive, partial match)")
-	cmd.Flags().StringVar(&screenFilter, "screen", "", "filter by screen ID or name")
+	cmd.Flags().StringVar(&screenFilter, "screen", "", "filter by stable UUID, localized name, or transient numeric ID (see `mado screen list`)")
 	cmd.Flags().IntVar(&desktopFilter, "desktop", 0, "scope operation to desktop number (1-based, Mission Control order)")
 	cmd.Flags().StringVar(&positionStr, "position", "", "target position x,y (global coordinates)")
 	cmd.Flags().StringVar(&sizeStr, "size", "", "target size width,height")

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -28,6 +29,13 @@ type ListResponse struct {
 	SchemaVersion int         `json:"schema_version"`
 	Success       bool        `json:"success"`
 	Windows       []ax.Window `json:"windows"`
+}
+
+// ScreenListResponse is the JSON output schema for the `screen list` command.
+type ScreenListResponse struct {
+	SchemaVersion int         `json:"schema_version"`
+	Success       bool        `json:"success"`
+	Screens       []ax.Screen `json:"screens"`
 }
 
 // MoveResponse is the JSON output schema for the move command.
@@ -82,6 +90,52 @@ func (f *Formatter) PrintWindows(windows []ax.Window) error {
 		})
 	}
 	return f.printWindowsText(windows)
+}
+
+// PrintScreenList outputs the list of screens.
+// Ordering: IsPrimary desc → X asc → Y asc. Empty UUID renders as "-" in text.
+func (f *Formatter) PrintScreenList(screens []ax.Screen) error {
+	sorted := make([]ax.Screen, len(screens))
+	copy(sorted, screens)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		if sorted[i].IsPrimary != sorted[j].IsPrimary {
+			return sorted[i].IsPrimary
+		}
+		if sorted[i].X != sorted[j].X {
+			return sorted[i].X < sorted[j].X
+		}
+		return sorted[i].Y < sorted[j].Y
+	})
+	if f.format == FormatJSON {
+		return f.printJSON(ScreenListResponse{
+			SchemaVersion: 1,
+			Success:       true,
+			Screens:       sorted,
+		})
+	}
+	return f.printScreensText(sorted)
+}
+
+func (f *Formatter) printScreensText(screens []ax.Screen) error {
+	if len(screens) == 0 {
+		_, err := fmt.Fprintln(f.out, "(no screens)")
+		return err
+	}
+	tw := tabwriter.NewWriter(f.out, 8, 1, 2, ' ', 0)
+	fmt.Fprintln(tw, "UUID\tNAME\tID\tGEOMETRY\tPRIMARY") //nolint:errcheck
+	for _, s := range screens {
+		uuid := s.UUID
+		if uuid == "" {
+			uuid = "-"
+		}
+		geometry := fmt.Sprintf("%d,%d %dx%d", s.X, s.Y, s.Width, s.Height)
+		primary := "no"
+		if s.IsPrimary {
+			primary = "yes"
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%d\t%s\t%s\n", uuid, s.Name, s.ID, geometry, primary) //nolint:errcheck
+	}
+	return tw.Flush()
 }
 
 // PrintMoveResult outputs the result of a move operation.

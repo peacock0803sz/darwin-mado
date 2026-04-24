@@ -198,6 +198,38 @@ func TestPrintWindowsMultiScreen(t *testing.T) {
 	}
 }
 
+var sampleScreens = []ax.Screen{
+	{ID: 12345678, Name: "DELL U2720Q", UUID: "12345678-90AB-CDEF-1234-567890ABCDEF", X: 2560, Y: 0, Width: 3840, Height: 2160, IsPrimary: false},
+	{ID: 69678592, Name: "Built-in Retina Display", UUID: "37D8832A-2D66-02CA-B9F7-8F30A301B230", X: 0, Y: 0, Width: 2560, Height: 1600, IsPrimary: true},
+	{ID: 42, Name: "Sidecar Display", UUID: "", X: -1920, Y: 0, Width: 1920, Height: 1080, IsPrimary: false},
+}
+
+func TestPrintScreenList(t *testing.T) {
+	tests := []struct {
+		name   string
+		format output.Format
+		golden string
+	}{
+		{"text", output.FormatText, "screen_list_text"},
+		{"json", output.FormatJSON, "screen_list_json"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			f := output.New(tt.format, &buf, &buf)
+			if err := f.PrintScreenList(sampleScreens); err != nil {
+				t.Fatal(err)
+			}
+			g := goldie.New(t)
+			if tt.format == output.FormatJSON {
+				g.AssertJson(t, tt.golden, buf.Bytes())
+			} else {
+				g.Assert(t, tt.golden, buf.Bytes())
+			}
+		})
+	}
+}
+
 var samplePresets = []preset.Preset{
 	{
 		Name:        "coding",
