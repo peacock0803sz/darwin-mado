@@ -72,6 +72,18 @@ func newPresetApplyCmd(svc ax.WindowService, flags *RootFlags) *cobra.Command {
 					if len(r.Affected) > 0 {
 						Verbosef(flags.Verbose, stderr, "rule[%d] matched %d window(s) for %s %q", r.RuleIndex, len(r.Affected), r.SelectorKind, r.SelectorValue)
 					}
+					if r.Skipped && (r.Reason == "screen_not_found" || r.Reason == "screen_ambiguous") {
+						for _, p := range flags.Presets {
+							if p.Name != name {
+								continue
+							}
+							if r.RuleIndex >= len(p.Rules) {
+								break
+							}
+							Verbosef(flags.Verbose, stderr, "rule[%d] skipped: %s (screen=%q)", r.RuleIndex, r.Reason, p.Rules[r.RuleIndex].Screen)
+							break
+						}
+					}
 				}
 			}
 

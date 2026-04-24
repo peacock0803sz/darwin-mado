@@ -471,6 +471,136 @@ func TestApply_DesktopFilter(t *testing.T) {
 	}
 }
 
+func TestApply_ScreenResolveUUID(t *testing.T) {
+	// Rule with a UUID `screen:` should pass and only affect windows on that screen.
+	screenBuiltin := ax.Screen{ID: 1, Name: "Built-in", UUID: "37D8832A-2D66-02CA-B9F7-8F30A301B230", IsPrimary: true}
+	screenExt := ax.Screen{ID: 2, Name: "DELL U2720Q", UUID: "12345678-90AB-CDEF-1234-567890ABCDEF"}
+
+	windows := []ax.Window{
+		{
+			AppName: "Code", Title: "main.go", PID: 1, Width: 960, Height: 1080, State: ax.StateNormal,
+			ScreenID: screenBuiltin.ID, ScreenName: screenBuiltin.Name, ScreenUUID: screenBuiltin.UUID,
+		},
+		{
+			AppName: "Code", Title: "test.go", PID: 1, Width: 960, Height: 1080, State: ax.StateNormal,
+			ScreenID: screenExt.ID, ScreenName: screenExt.Name, ScreenUUID: screenExt.UUID,
+		},
+		{
+			AppName: "Code", Title: "other.go", PID: 1, Width: 960, Height: 1080, State: ax.StateNormal,
+			ScreenID: screenExt.ID, ScreenName: screenExt.Name, ScreenUUID: screenExt.UUID,
+		},
+	}
+	presets := []preset.Preset{{
+		Name: "ext-only",
+		Rules: []preset.Rule{
+			{App: "Code", Screen: screenExt.UUID, Position: []int{0, 0}, Size: []int{1024, 768}},
+		},
+	}}
+	svc := &ax.MockWindowService{Windows: windows, Screens: []ax.Screen{screenBuiltin, screenExt}}
+	outcome, err := preset.Apply(context.Background(), svc, presets, "ext-only", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(outcome.Results) != 1 {
+		t.Fatalf("len(Results) = %d, want 1", len(outcome.Results))
+	}
+	if len(outcome.Results[0].Affected) != 2 {
+		t.Errorf("Affected = %d, want 2 (only windows on DELL)", len(outcome.Results[0].Affected))
+	}
+}
+
+func TestApply_ScreenNotFoundSkips(t *testing.T) {
+	screenBuiltin := ax.Screen{ID: 1, Name: "Built-in", UUID: "37D8832A-2D66-02CA-B9F7-8F30A301B230", IsPrimary: true}
+	windows := []ax.Window{
+		{
+			AppName: "Code", Title: "main.go", PID: 1, Width: 960, Height: 1080, State: ax.StateNormal,
+			ScreenID: screenBuiltin.ID, ScreenName: screenBuiltin.Name, ScreenUUID: screenBuiltin.UUID,
+		},
+		{
+			AppName: "Terminal", Title: "zsh", PID: 2, Width: 960, Height: 1080, State: ax.StateNormal,
+			ScreenID: screenBuiltin.ID, ScreenName: screenBuiltin.Name, ScreenUUID: screenBuiltin.UUID,
+		},
+	}
+	presets := []preset.Preset{{
+		Name: "split",
+		Rules: []preset.Rule{
+			{App: "Code", Screen: "00000000-0000-0000-0000-DEADBEEFDEAD", Position: []int{0, 0}, Size: []int{1024, 768}},
+			{App: "Terminal", Position: []int{0, 0}, Size: []int{640, 480}},
+		},
+	}}
+	svc := &ax.MockWindowService{Windows: windows, Screens: []ax.Screen{screenBuiltin}}
+	outcome, err := preset.Apply(context.Background(), svc, presets, "split", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(outcome.Results) != 2 {
+		t.Fatalf("len(Results) = %d, want 2", len(outcome.Results))
+	}
+	if !outcome.Results[0].Skipped || outcome.Results[0].Reason != "screen_not_found" {
+		t.Errorf("result[0] = %+v; want Skipped=true Reason=screen_not_found", outcome.Results[0])
+	}
+	if outcome.Results[1].Skipped {
+		t.Errorf("result[1] should not be skipped (Terminal rule has no screen filter)")
+	}
+	if len(outcome.Results[1].Affected) != 1 {
+		t.Errorf("result[1].Affected = %d, want 1", len(outcome.Results[1].Affected))
+	}
+}
+
+func TestApply_ScreenAmbiguousSkips(t *testing.T) {
+	// Two identical-name panels — the rule references the shared name.
+	screenA := ax.Screen{ID: 101, Name: "DELL U2720Q", UUID: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"}
+	screenB := ax.Screen{ID: 102, Name: "DELL U2720Q", UUID: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"}
+	windows := []ax.Window{
+		{
+			AppName: "Code", Title: "main.go", PID: 1, Width: 960, Height: 1080, State: ax.StateNormal,
+			ScreenID: screenA.ID, ScreenName: screenA.Name, ScreenUUID: screenA.UUID,
+		},
+	}
+	presets := []preset.Preset{{
+		Name: "ambiguous",
+		Rules: []preset.Rule{
+			{App: "Code", Screen: "DELL U2720Q", Position: []int{0, 0}, Size: []int{1024, 768}},
+		},
+	}}
+	svc := &ax.MockWindowService{Windows: windows, Screens: []ax.Screen{screenA, screenB}}
+	outcome, err := preset.Apply(context.Background(), svc, presets, "ambiguous", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(outcome.Results) != 1 {
+		t.Fatalf("len(Results) = %d, want 1", len(outcome.Results))
+	}
+	if !outcome.Results[0].Skipped || outcome.Results[0].Reason != "screen_ambiguous" {
+		t.Errorf("result[0] = %+v; want Skipped=true Reason=screen_ambiguous", outcome.Results[0])
+	}
+}
+
+func TestApply_ScreenNumericIDStillResolves(t *testing.T) {
+	// Back-compat: rule with a transient numeric id stage-3 matches.
+	screenBuiltin := ax.Screen{ID: 42, Name: "Built-in", UUID: "37D8832A-2D66-02CA-B9F7-8F30A301B230", IsPrimary: true}
+	windows := []ax.Window{
+		{
+			AppName: "Code", Title: "main.go", PID: 1, Width: 960, Height: 1080, State: ax.StateNormal,
+			ScreenID: screenBuiltin.ID, ScreenName: screenBuiltin.Name, ScreenUUID: screenBuiltin.UUID,
+		},
+	}
+	presets := []preset.Preset{{
+		Name: "legacy-id",
+		Rules: []preset.Rule{
+			{App: "Code", Screen: "42", Position: []int{0, 0}, Size: []int{1024, 768}},
+		},
+	}}
+	svc := &ax.MockWindowService{Windows: windows, Screens: []ax.Screen{screenBuiltin}}
+	outcome, err := preset.Apply(context.Background(), svc, presets, "legacy-id", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if outcome.Results[0].Skipped {
+		t.Errorf("rule should apply via stage-3 numeric ID; got Skipped=true Reason=%q", outcome.Results[0].Reason)
+	}
+}
+
 func TestApply_DesktopFilterSkipsUnknownDesktop(t *testing.T) {
 	windows := []ax.Window{
 		{AppName: "Code", Title: "win1", PID: 1, State: ax.StateNormal, Width: 960, Height: 1080, Desktop: -1},
