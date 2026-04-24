@@ -23,6 +23,7 @@ var multiScreenWindows = []ax.Window{
 		State:      ax.StateNormal,
 		ScreenID:   69678592,
 		ScreenName: "Built-in Retina Display",
+		ScreenUUID: "37D8832A-2D66-02CA-B9F7-8F30A301B230",
 		Desktop:    1,
 	},
 	{
@@ -37,6 +38,7 @@ var multiScreenWindows = []ax.Window{
 		State:      ax.StateNormal,
 		ScreenID:   12345678,
 		ScreenName: "DELL U2720Q",
+		ScreenUUID: "12345678-90AB-CDEF-1234-567890ABCDEF",
 		Desktop:    2,
 	},
 	{
@@ -65,6 +67,7 @@ var sampleWindows = []ax.Window{
 		State:      ax.StateNormal,
 		ScreenID:   69678592,
 		ScreenName: "Built-in Retina Display",
+		ScreenUUID: "37D8832A-2D66-02CA-B9F7-8F30A301B230",
 		Desktop:    1,
 	},
 	{
@@ -79,6 +82,7 @@ var sampleWindows = []ax.Window{
 		State:      ax.StateNormal,
 		ScreenID:   69678592,
 		ScreenName: "Built-in Retina Display",
+		ScreenUUID: "37D8832A-2D66-02CA-B9F7-8F30A301B230",
 		Desktop:    1,
 	},
 	{

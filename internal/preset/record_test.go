@@ -120,9 +120,9 @@ func TestRecord_InvalidName(t *testing.T) {
 func TestRecord_ScreenFilter(t *testing.T) {
 	svc := &ax.MockWindowService{
 		Windows: []ax.Window{
-			{AppName: "Code", Title: "main.go", PID: 1, X: 0, Y: 0, Width: 960, Height: 1080, State: ax.StateNormal, ScreenID: 1, ScreenName: "Built-in Retina Display"},
-			{AppName: "Terminal", Title: "zsh", PID: 2, X: 960, Y: 0, Width: 960, Height: 1080, State: ax.StateNormal, ScreenID: 2, ScreenName: "DELL U2720Q"},
-			{AppName: "Safari", Title: "Google", PID: 3, X: 0, Y: 0, Width: 1920, Height: 1080, State: ax.StateNormal, ScreenID: 2, ScreenName: "DELL U2720Q"},
+			{AppName: "Code", Title: "main.go", PID: 1, X: 0, Y: 0, Width: 960, Height: 1080, State: ax.StateNormal, ScreenID: 1, ScreenName: "Built-in Retina Display", ScreenUUID: "37D8832A-2D66-02CA-B9F7-8F30A301B230"},
+			{AppName: "Terminal", Title: "zsh", PID: 2, X: 960, Y: 0, Width: 960, Height: 1080, State: ax.StateNormal, ScreenID: 2, ScreenName: "DELL U2720Q", ScreenUUID: "12345678-90AB-CDEF-1234-567890ABCDEF"},
+			{AppName: "Safari", Title: "Google", PID: 3, X: 0, Y: 0, Width: 1920, Height: 1080, State: ax.StateNormal, ScreenID: 2, ScreenName: "DELL U2720Q", ScreenUUID: "12345678-90AB-CDEF-1234-567890ABCDEF"},
 		},
 	}
 

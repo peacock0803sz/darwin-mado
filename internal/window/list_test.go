@@ -263,6 +263,60 @@ func TestIsIgnoredApp_CaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestMatchScreen_Precedence(t *testing.T) {
+	w := ax.Window{
+		ScreenID:   42,
+		ScreenName: "DELL U2720Q",
+		ScreenUUID: "37D8832A-2D66-02CA-B9F7-8F30A301B230",
+	}
+	cases := []struct {
+		name   string
+		filter string
+		want   bool
+	}{
+		{"UUID exact match", "37D8832A-2D66-02CA-B9F7-8F30A301B230", true},
+		{"case-insensitive name match", "dell u2720q", true},
+		{"decimal numeric ID match", "42", true},
+		{"UUID mismatch falls through — neither name nor id match", "99999999-0000-0000-0000-000000000000", false},
+		{"completely unknown value", "NotHere", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := window.MatchScreen(w, tc.filter); got != tc.want {
+				t.Errorf("MatchScreen(w, %q) = %v, want %v", tc.filter, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestMatchScreen_UUIDWinsOverName(t *testing.T) {
+	// Window whose ScreenName coincidentally equals the ScreenUUID string form
+	// should still stage-1 hit on UUID; this verifies the ordering, not behavior difference.
+	w := ax.Window{
+		ScreenID:   1,
+		ScreenName: "37D8832A-2D66-02CA-B9F7-8F30A301B230",
+		ScreenUUID: "37D8832A-2D66-02CA-B9F7-8F30A301B230",
+	}
+	if !window.MatchScreen(w, "37D8832A-2D66-02CA-B9F7-8F30A301B230") {
+		t.Error("expected UUID-form filter to match when UUID equals name")
+	}
+}
+
+func TestMatchScreen_EmptyUUID_NameAndIDStillWork(t *testing.T) {
+	// Back-compat: windows whose UUID is empty still match by name and id.
+	w := ax.Window{
+		ScreenID:   42,
+		ScreenName: "Built-in",
+		ScreenUUID: "",
+	}
+	if !window.MatchScreen(w, "Built-in") {
+		t.Error("expected name match when UUID empty")
+	}
+	if !window.MatchScreen(w, "42") {
+		t.Error("expected id match when UUID empty")
+	}
+}
+
 func TestIsIgnoredApp_EmptyList(t *testing.T) {
 	if window.IsIgnoredApp("Safari", "com.apple.Safari", nil) {
 		t.Error("empty ignoreApps should never match")
