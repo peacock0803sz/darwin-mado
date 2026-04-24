@@ -82,8 +82,14 @@ func IsIgnoredApp(appName, appID string, ignoreApps []string) bool {
 	return false
 }
 
-// MatchScreen filters a window by screen ID (numeric string) or screen name (case-insensitive).
+// MatchScreen reports whether w matches the given screen filter.
+// Precedence (FR-005a): (1) exact match against ScreenUUID (case-preserving),
+// (2) case-insensitive match against ScreenName, (3) decimal match against ScreenID.
+// Callers must guard filter != "" before calling.
 func MatchScreen(w ax.Window, filter string) bool {
+	if w.ScreenUUID != "" && w.ScreenUUID == filter {
+		return true
+	}
 	if strings.EqualFold(w.ScreenName, filter) {
 		return true
 	}

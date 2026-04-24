@@ -56,7 +56,12 @@ mado move --app Terminal --position 0,0 --size 800,600
 # Move all windows of an app at once (--all)
 mado move --app Safari --all --position 0,0
 
-# Specify a screen in a multi-display setup
+# List connected displays with their stable UUIDs
+mado screen list
+
+# Specify a screen in a multi-display setup — recommended: stable UUID
+mado list --screen 37D8832A-2D66-02CA-B9F7-8F30A301B230
+# Still supported: localized display name (case-insensitive) or transient numeric ID
 mado list --screen "DELL U2720Q"
 mado move --app Terminal --screen "Built-in Retina Display" --position 100,100
 
@@ -91,6 +96,14 @@ The config file path can be overridden with the `$MADO_CONFIG` environment varia
 ### Presets
 
 Define named window layout presets in the same config file and apply them with a single command.
+
+A rule's `screen:` field accepts three forms, resolved in this order:
+
+1. Stable display UUID from `mado screen list` (recommended — survives reboots and reconnection order changes)
+2. Human-readable display name (case-insensitive exact match)
+3. Legacy transient numeric display ID
+
+`mado preset rec` writes UUIDs into the `screen:` field automatically when the runtime can obtain them.
 
 ```yaml
 timeout: 5s

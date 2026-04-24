@@ -44,6 +44,22 @@ presets:
         position: [0, 0]
         size: [1920, 1080]
 
+  # Pin each rule to a specific physical display by its stable UUID.
+  # Discover UUIDs with: mado screen list
+  # The UUID survives reboots and reconnection order changes, unlike the
+  # transient numeric ID shown by older tools.
+  - name: two-screen
+    description: "Terminal on laptop, Safari on external"
+    rules:
+      - app_id: com.apple.Terminal
+        screen: 37D8832A-2D66-02CA-B9F7-8F30A301B230   # Built-in Retina Display
+        position: [0, 0]
+        size: [1280, 1600]
+      - app_id: com.apple.Safari
+        screen: 12345678-90AB-CDEF-1234-567890ABCDEF   # DELL U2720Q
+        position: [2560, 0]
+        size: [3840, 2160]
+
 # Applications to exclude from list output and preset matching.
 # Entries containing a dot (.) are matched against bundle identifiers;
 # entries without a dot are matched against display names.

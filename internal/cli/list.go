@@ -4,13 +4,60 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
 	"github.com/peacock0803sz/mado/internal/ax"
 	"github.com/peacock0803sz/mado/internal/output"
+	"github.com/peacock0803sz/mado/internal/screen"
 	"github.com/peacock0803sz/mado/internal/window"
 )
+
+// resolveScreenFilterErr converts a user-provided --screen value into a
+// canonical filter string that window.MatchScreen resolves unambiguously.
+// Returns the UUID (stage-1) when present; otherwise the decimal ScreenID
+// (stage-3). The stage-2 name match is intentionally skipped to avoid
+// re-introducing ambiguity when multiple displays share a localized name.
+//   - filter == ""        → ("", nil)
+//   - resolvable          → (uuid | decimal-id, nil)
+//   - unresolved/ambiguous → ("", error from screen package)
+//   - AX list failure     → ("", wrapped error)
+func resolveScreenFilterErr(ctx context.Context, svc ax.WindowService, filter string) (string, error) {
+	if filter == "" {
+		return "", nil
+	}
+	screens, err := svc.ListScreens(ctx)
+	if err != nil {
+		return "", err
+	}
+	s, err := screen.Resolve(filter, screens)
+	if err != nil {
+		return "", err
+	}
+	if s.UUID != "" {
+		return s.UUID, nil
+	}
+	return strconv.FormatUint(uint64(s.ID), 10), nil
+}
+
+// resolveScreenFilter calls resolveScreenFilterErr and translates errors
+// into the contract's exit codes: 1 for AX failure, 4 for resolve failure.
+func resolveScreenFilter(ctx context.Context, svc ax.WindowService, f *output.Formatter, filter string) string {
+	resolved, err := resolveScreenFilterErr(ctx, svc, filter)
+	if err == nil {
+		return resolved
+	}
+	var notFound *screen.ScreenNotFoundError
+	var ambiguous *screen.AmbiguousScreenError
+	if errors.As(err, &notFound) || errors.As(err, &ambiguous) {
+		_ = f.PrintError(4, err.Error(), nil)
+		os.Exit(4)
+	}
+	_ = f.PrintError(1, err.Error(), nil)
+	os.Exit(1)
+	return "" // unreachable
+}
 
 // newListCmd creates the list subcommand (T023).
 func newListCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
@@ -37,10 +84,11 @@ func newListCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 				os.Exit(2)
 			}
 
+			resolvedScreen := resolveScreenFilter(ctx, svc, f, screenFilter)
 			opts := window.ListOptions{
 				AppFilter:    appFilter,
 				AppIDFilter:  appIDFilter,
-				ScreenFilter: screenFilter,
+				ScreenFilter: resolvedScreen,
 			}
 			// When --app or --app-id is explicitly specified, bypass the ignore list.
 			// The user's intent to inspect a specific app takes precedence
@@ -88,7 +136,7 @@ func newListCmd(svc ax.WindowService, root *RootFlags) *cobra.Command {
 
 	cmd.Flags().StringVar(&appFilter, "app", "", "filter by app name (case-insensitive, exact match)")
 	cmd.Flags().StringVar(&appIDFilter, "app-id", "", "filter by bundle identifier (case-insensitive, exact match)")
-	cmd.Flags().StringVar(&screenFilter, "screen", "", "filter by screen ID or name (exact match)")
+	cmd.Flags().StringVar(&screenFilter, "screen", "", "filter by stable UUID, localized name, or transient numeric ID (see `mado screen list`)")
 	cmd.Flags().IntVar(&desktopFilter, "desktop", 0, "filter by desktop number (1-based, Mission Control order)")
 
 	return cmd

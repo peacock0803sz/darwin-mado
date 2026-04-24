@@ -2,7 +2,9 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,6 +13,7 @@ import (
 
 	"github.com/peacock0803sz/mado/internal/ax"
 	"github.com/peacock0803sz/mado/internal/cli"
+	"github.com/peacock0803sz/mado/internal/screen"
 )
 
 var listTestWindows = []ax.Window{
@@ -139,6 +142,90 @@ func TestListCmd_JSONVerbose(t *testing.T) {
 	}
 	if stdout != stdoutNoVerbose {
 		t.Errorf("stdout should be identical with/without --verbose\nwith:    %s\nwithout: %s", stdout, stdoutNoVerbose)
+	}
+}
+
+func TestListCmd_ScreenFilterUUID(t *testing.T) {
+	uuidA := "37D8832A-2D66-02CA-B9F7-8F30A301B230"
+	uuidB := "12345678-90AB-CDEF-1234-567890ABCDEF"
+	windows := []ax.Window{
+		{AppName: "Code", Title: "main", PID: 1, State: ax.StateNormal, ScreenID: 1, ScreenName: "Built-in", ScreenUUID: uuidA},
+		{AppName: "Safari", Title: "GitHub", PID: 2, State: ax.StateNormal, ScreenID: 2, ScreenName: "DELL U2720Q", ScreenUUID: uuidB},
+	}
+	screens := []ax.Screen{
+		{ID: 1, Name: "Built-in", UUID: uuidA, IsPrimary: true},
+		{ID: 2, Name: "DELL U2720Q", UUID: uuidB},
+	}
+	svc := &ax.MockWindowService{Windows: windows, Screens: screens}
+	stdout, err := executeListCmdCapture(t, svc, "format: text\n", "list", "--screen", uuidB, "--format", "json")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stdout, "GitHub") {
+		t.Errorf("expected Safari/GitHub (on DELL) in output, got:\n%s", stdout)
+	}
+	if strings.Contains(stdout, `"title": "main"`) {
+		t.Errorf("Code (on Built-in) leaked into --screen=%s output", uuidB)
+	}
+}
+
+func TestListCmd_ScreenFilterByName(t *testing.T) {
+	windows := []ax.Window{
+		{AppName: "Code", Title: "main", PID: 1, State: ax.StateNormal, ScreenID: 1, ScreenName: "Built-in", ScreenUUID: "AAAAAAAA-0000-0000-0000-000000000000"},
+		{AppName: "Safari", Title: "GitHub", PID: 2, State: ax.StateNormal, ScreenID: 2, ScreenName: "DELL U2720Q", ScreenUUID: "BBBBBBBB-0000-0000-0000-000000000000"},
+	}
+	screens := []ax.Screen{
+		{ID: 1, Name: "Built-in", UUID: "AAAAAAAA-0000-0000-0000-000000000000", IsPrimary: true},
+		{ID: 2, Name: "DELL U2720Q", UUID: "BBBBBBBB-0000-0000-0000-000000000000"},
+	}
+	svc := &ax.MockWindowService{Windows: windows, Screens: screens}
+	stdout, err := executeListCmdCapture(t, svc, "format: text\n", "list", "--screen", "dell u2720q")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stdout, "Safari") {
+		t.Errorf("expected Safari in output, got:\n%s", stdout)
+	}
+	if strings.Contains(stdout, "Code") {
+		t.Errorf("Code (on Built-in) leaked into --screen=dell u2720q output")
+	}
+}
+
+func TestResolveScreenFilterErr_NotFound(t *testing.T) {
+	// Error-path tests go through the unit-testable resolveScreenFilterErr
+	// seam. The CLI layer wraps these errors with PrintError(4,...) + os.Exit(4)
+	// per the contract; that wrapping is trivial enough that we accept the
+	// seam boundary.
+	screens := []ax.Screen{
+		{ID: 1, Name: "Built-in", UUID: "AAAA0000-0000-0000-0000-000000000000", IsPrimary: true},
+	}
+	svc := &ax.MockWindowService{Screens: screens}
+	_, err := cli.ResolveScreenFilterForTest(context.Background(), svc, "NonExistent")
+	var notFound *screen.ScreenNotFoundError
+	if !errors.As(err, &notFound) {
+		t.Fatalf("got err=%v, want ScreenNotFoundError", err)
+	}
+	if !strings.Contains(notFound.Error(), "no display matched") {
+		t.Errorf("error message missing expected text: %q", notFound.Error())
+	}
+	if !strings.Contains(notFound.Error(), "AAAA0000") {
+		t.Errorf("error message should list Available UUIDs: %q", notFound.Error())
+	}
+}
+
+func TestResolveScreenFilterErr_Ambiguous(t *testing.T) {
+	screens := []ax.Screen{
+		{ID: 101, Name: "DELL U2720Q", UUID: "AAAA0000-0000-0000-0000-000000000000"},
+		{ID: 102, Name: "DELL U2720Q", UUID: "BBBB0000-0000-0000-0000-000000000000"},
+	}
+	svc := &ax.MockWindowService{Screens: screens}
+	_, err := cli.ResolveScreenFilterForTest(context.Background(), svc, "DELL U2720Q")
+	var ambiguous *screen.AmbiguousScreenError
+	if !errors.As(err, &ambiguous) {
+		t.Fatalf("got err=%v, want AmbiguousScreenError", err)
+	}
+	if !strings.Contains(ambiguous.Error(), "AAAA0000") || !strings.Contains(ambiguous.Error(), "BBBB0000") {
+		t.Errorf("error message should list candidate UUIDs: %q", ambiguous.Error())
 	}
 }
 

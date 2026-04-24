@@ -120,9 +120,9 @@ func TestRecord_InvalidName(t *testing.T) {
 func TestRecord_ScreenFilter(t *testing.T) {
 	svc := &ax.MockWindowService{
 		Windows: []ax.Window{
-			{AppName: "Code", Title: "main.go", PID: 1, X: 0, Y: 0, Width: 960, Height: 1080, State: ax.StateNormal, ScreenID: 1, ScreenName: "Built-in Retina Display"},
-			{AppName: "Terminal", Title: "zsh", PID: 2, X: 960, Y: 0, Width: 960, Height: 1080, State: ax.StateNormal, ScreenID: 2, ScreenName: "DELL U2720Q"},
-			{AppName: "Safari", Title: "Google", PID: 3, X: 0, Y: 0, Width: 1920, Height: 1080, State: ax.StateNormal, ScreenID: 2, ScreenName: "DELL U2720Q"},
+			{AppName: "Code", Title: "main.go", PID: 1, X: 0, Y: 0, Width: 960, Height: 1080, State: ax.StateNormal, ScreenID: 1, ScreenName: "Built-in Retina Display", ScreenUUID: "37D8832A-2D66-02CA-B9F7-8F30A301B230"},
+			{AppName: "Terminal", Title: "zsh", PID: 2, X: 960, Y: 0, Width: 960, Height: 1080, State: ax.StateNormal, ScreenID: 2, ScreenName: "DELL U2720Q", ScreenUUID: "12345678-90AB-CDEF-1234-567890ABCDEF"},
+			{AppName: "Safari", Title: "Google", PID: 3, X: 0, Y: 0, Width: 1920, Height: 1080, State: ax.StateNormal, ScreenID: 2, ScreenName: "DELL U2720Q", ScreenUUID: "12345678-90AB-CDEF-1234-567890ABCDEF"},
 		},
 	}
 
@@ -284,6 +284,90 @@ func TestRecord_AppIDFallback(t *testing.T) {
 	}
 	if r.AppID != "" {
 		t.Errorf("rule.AppID = %q, want empty for fallback", r.AppID)
+	}
+}
+
+func TestRecord_WritesScreenUUID(t *testing.T) {
+	uuidA := "37D8832A-2D66-02CA-B9F7-8F30A301B230"
+	uuidB := "12345678-90AB-CDEF-1234-567890ABCDEF"
+	svc := &ax.MockWindowService{
+		Windows: []ax.Window{
+			{
+				AppName: "Code", Title: "main", PID: 1, X: 0, Y: 0, Width: 960, Height: 1080, State: ax.StateNormal,
+				ScreenID: 1, ScreenName: "Built-in", ScreenUUID: uuidA,
+			},
+			{
+				AppName: "Terminal", Title: "zsh", PID: 2, X: 960, Y: 0, Width: 960, Height: 1080, State: ax.StateNormal,
+				ScreenID: 2, ScreenName: "DELL U2720Q", ScreenUUID: uuidB,
+			},
+		},
+	}
+	p, err := Record(context.Background(), svc, "two-screens", RecordOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(p.Rules) != 2 {
+		t.Fatalf("len(rules) = %d, want 2", len(p.Rules))
+	}
+	if p.Rules[0].Screen != uuidA {
+		t.Errorf("rules[0].Screen = %q, want %q", p.Rules[0].Screen, uuidA)
+	}
+	if p.Rules[1].Screen != uuidB {
+		t.Errorf("rules[1].Screen = %q, want %q", p.Rules[1].Screen, uuidB)
+	}
+}
+
+func TestRecord_OmitsScreenWhenUUIDEmpty(t *testing.T) {
+	// When the runtime couldn't obtain a UUID (virtual / sidecar display),
+	// ScreenUUID stays empty and rule.Screen must also be left empty so the
+	// recorded preset does not hard-pin to a transient numeric ID.
+	svc := &ax.MockWindowService{
+		Windows: []ax.Window{
+			{
+				AppName: "Code", Title: "main", PID: 1, X: 0, Y: 0, Width: 960, Height: 1080, State: ax.StateNormal,
+				ScreenID: 42, ScreenName: "Sidecar", ScreenUUID: "",
+			},
+		},
+	}
+	p, err := Record(context.Background(), svc, "sidecar", RecordOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(p.Rules) != 1 {
+		t.Fatalf("len(rules) = %d, want 1", len(p.Rules))
+	}
+	if p.Rules[0].Screen != "" {
+		t.Errorf("rules[0].Screen = %q, want empty (no UUID)", p.Rules[0].Screen)
+	}
+}
+
+func TestRecord_ScreenFilterByUUID(t *testing.T) {
+	uuidA := "37D8832A-2D66-02CA-B9F7-8F30A301B230"
+	uuidB := "12345678-90AB-CDEF-1234-567890ABCDEF"
+	svc := &ax.MockWindowService{
+		Windows: []ax.Window{
+			{
+				AppName: "Code", Title: "main", PID: 1, X: 0, Y: 0, Width: 960, Height: 1080, State: ax.StateNormal,
+				ScreenID: 1, ScreenName: "Built-in", ScreenUUID: uuidA,
+			},
+			{
+				AppName: "Terminal", Title: "zsh", PID: 2, X: 960, Y: 0, Width: 960, Height: 1080, State: ax.StateNormal,
+				ScreenID: 2, ScreenName: "DELL U2720Q", ScreenUUID: uuidB,
+			},
+		},
+	}
+	p, err := Record(context.Background(), svc, "ext-only", RecordOptions{Screen: uuidB})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(p.Rules) != 1 {
+		t.Fatalf("len(rules) = %d, want 1", len(p.Rules))
+	}
+	if p.Rules[0].App != "" && p.Rules[0].App != "Terminal" {
+		t.Errorf("rules[0].App = %q, want Terminal", p.Rules[0].App)
+	}
+	if p.Rules[0].Screen != uuidB {
+		t.Errorf("rules[0].Screen = %q, want %q", p.Rules[0].Screen, uuidB)
 	}
 }
 

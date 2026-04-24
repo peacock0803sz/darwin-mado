@@ -51,7 +51,7 @@
                 screen = lib.mkOption {
                   type = lib.types.nullOr (lib.types.str);
                   default = null;
-                  description = "Screen ID or name filter";
+                  description = "Display selector. Accepts one of (priority order): (a) stable display UUID (e.g. \"37D8832A-2D66-02CA-B9F7-8F30A301B230\"); (b) human-readable display name (case-insensitive exact match, e.g. \"DELL U2720Q\"); (c) legacy transient numeric display ID. Use `mado screen list` to discover values. Stable UUID is recommended because it survives reboots and reconnection order changes.";
                 };
                 size = lib.mkOption {
                   type = lib.types.nullOr (lib.types.listOf (lib.types.ints.positive));

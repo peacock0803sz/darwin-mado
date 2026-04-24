@@ -2,10 +2,12 @@ package preset
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/peacock0803sz/mado/internal/ax"
+	"github.com/peacock0803sz/mado/internal/screen"
 	"github.com/peacock0803sz/mado/internal/window"
 )
 
@@ -73,6 +75,20 @@ func Apply(ctx context.Context, svc ax.WindowService, presets []Preset, name str
 		return nil, err
 	}
 
+	// Screens are fetched lazily: only when at least one rule has a non-empty
+	// `screen:` field. Cache so we don't pay the AX roundtrip per rule.
+	var screensCached []ax.Screen
+	var screensErr error
+	var screensLoaded bool
+	loadScreens := func() ([]ax.Screen, error) {
+		if screensLoaded {
+			return screensCached, screensErr
+		}
+		screensCached, screensErr = svc.ListScreens(ctx)
+		screensLoaded = true
+		return screensCached, screensErr
+	}
+
 	// 適用済みウィンドウの追跡 (PID+Title で一意に識別)
 	type winKey struct {
 		PID   uint32
@@ -86,6 +102,37 @@ func Apply(ctx context.Context, svc ax.WindowService, presets []Preset, name str
 
 	for i, rule := range target.Rules {
 		kind, value := selectorOf(rule)
+
+		// Resolve screen filter before per-rule matching so unresolvable or
+		// ambiguous selectors short-circuit to a Skip result without performing
+		// any window mutations.
+		if rule.Screen != "" {
+			screens, err := loadScreens()
+			if err != nil {
+				return outcome, err
+			}
+			if _, resolveErr := screen.Resolve(rule.Screen, screens); resolveErr != nil {
+				reason := ""
+				var notFound *screen.ScreenNotFoundError
+				var ambiguous *screen.AmbiguousScreenError
+				switch {
+				case errors.As(resolveErr, &notFound):
+					reason = "screen_not_found"
+				case errors.As(resolveErr, &ambiguous):
+					reason = "screen_ambiguous"
+				default:
+					return outcome, resolveErr
+				}
+				outcome.Results = append(outcome.Results, ApplyResult{
+					RuleIndex:     i,
+					SelectorKind:  kind,
+					SelectorValue: value,
+					Skipped:       true,
+					Reason:        reason,
+				})
+				continue
+			}
+		}
 
 		// ルールに基づいてウィンドウをフィルタリング
 		matches := filterForRule(windows, rule)

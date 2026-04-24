@@ -1,0 +1,4 @@
+UUID                                  NAME                     ID        GEOMETRY           PRIMARY
+37D8832A-2D66-02CA-B9F7-8F30A301B230  Built-in Retina Display  69678592  0,0 2560x1600      yes
+-                                     Sidecar Display          42        -1920,0 1920x1080  no
+12345678-90AB-CDEF-1234-567890ABCDEF  DELL U2720Q              12345678  2560,0 3840x2160   no

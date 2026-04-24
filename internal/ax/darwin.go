@@ -15,6 +15,11 @@ package ax
 #include <dlfcn.h>
 #include <stdint.h>
 
+// libobjc autorelease pool primitives. Forward-declared so we don't need to
+// pull in <objc/NSObject.h>, which drags in additional Obj-C headers.
+extern void* objc_autoreleasePoolPush(void);
+extern void  objc_autoreleasePoolPop(void*);
+
 // --- CGS Private API (SkyLight.framework via dlsym) ---
 
 #define kCGSAllSpacesMask 0x7
@@ -229,22 +234,108 @@ int cstr_is_null(const char *s)          { return s == NULL ? 1 : 0; }
 // produce a NULL pointer on ARM64 due to cgo opaque-struct reinterpretation.
 void cf_release_array(CFArrayRef a)      { if (a) CFRelease(a); }
 
+// Obtain a stable per-display UUID string (e.g. "37D8832A-...").
+// Returns a malloc'd C string the caller must free, or NULL on failure.
+static char* display_uuid_string(CGDirectDisplayID displayID) {
+    CFUUIDRef uuid = CGDisplayCreateUUIDFromDisplayID(displayID);
+    if (!uuid) return NULL;
+    CFStringRef s = CFUUIDCreateString(NULL, uuid);
+    CFRelease(uuid);
+    if (!s) return NULL;
+    char *out = cf_to_cstr(s);
+    CFRelease(s);
+    return out;
+}
+
+// Returns the primary display mirrored by displayID, or 0 when displayID is
+// not mirroring another display. When a set of displays mirror each other,
+// the non-primary members return the primary display's ID here.
+static CGDirectDisplayID display_mirrors_display(CGDirectDisplayID displayID) {
+    return CGDisplayMirrorsDisplay(displayID);
+}
+
+// Pointer-sized Obj-C object alias. Defined as `void*` to avoid pulling in
+// <objc/objc.h>'s `id` typedef, which conflicts with ordinary C parameter
+// names `id` in the rest of this file.
+typedef void* obj_id_t;
+
+// Lookup the NSScreen.localizedName for a given CGDirectDisplayID.
+// Iterates [NSScreen screens] and matches on deviceDescription[@"NSScreenNumber"].
+// Returns a malloc'd C string the caller must free, or NULL if not found.
+//
+// All Obj-C calls inside autorelease pool so autoreleased NSArray/NSString/
+// NSDictionary/NSNumber instances are drained when the function returns.
+static char* display_localized_name(CGDirectDisplayID displayID) {
+    void *pool = objc_autoreleasePoolPush();
+    char *result = NULL;
+
+    Class nsScreenCls = objc_getClass("NSScreen");
+    if (!nsScreenCls) goto done;
+    SEL screensSel = sel_registerName("screens");
+    obj_id_t screensArr = ((obj_id_t(*)(Class, SEL))objc_msgSend)(nsScreenCls, screensSel);
+    if (!screensArr) goto done;
+
+    SEL countSel = sel_registerName("count");
+    long count = ((long(*)(obj_id_t, SEL))objc_msgSend)(screensArr, countSel);
+
+    SEL objAtIdxSel = sel_registerName("objectAtIndex:");
+    SEL devDescSel  = sel_registerName("deviceDescription");
+    SEL objForKeySel = sel_registerName("objectForKey:");
+    SEL unsignedIntSel = sel_registerName("unsignedIntValue");
+    SEL localizedNameSel = sel_registerName("localizedName");
+    SEL utf8Sel = sel_registerName("UTF8String");
+
+    CFStringRef nsScreenNumberKey = CFSTR("NSScreenNumber");
+
+    for (long i = 0; i < count; i++) {
+        obj_id_t screen = ((obj_id_t(*)(obj_id_t, SEL, long))objc_msgSend)(screensArr, objAtIdxSel, i);
+        if (!screen) continue;
+        obj_id_t dict = ((obj_id_t(*)(obj_id_t, SEL))objc_msgSend)(screen, devDescSel);
+        if (!dict) continue;
+        obj_id_t num = ((obj_id_t(*)(obj_id_t, SEL, obj_id_t))objc_msgSend)(dict, objForKeySel, (obj_id_t)nsScreenNumberKey);
+        if (!num) continue;
+        uint32_t screenNum = ((uint32_t(*)(obj_id_t, SEL))objc_msgSend)(num, unsignedIntSel);
+        if (screenNum != (uint32_t)displayID) continue;
+        obj_id_t nameStr = ((obj_id_t(*)(obj_id_t, SEL))objc_msgSend)(screen, localizedNameSel);
+        if (!nameStr) continue;
+        const char *utf8 = ((const char*(*)(obj_id_t, SEL))objc_msgSend)(nameStr, utf8Sel);
+        if (!utf8) continue;
+        // strdup before pool pop: utf8 is backed by an autoreleased NSString.
+        result = strdup(utf8);
+        break;
+    }
+
+done:
+    objc_autoreleasePoolPop(pool);
+    return result;
+}
+
 // Retrieve the macOS bundle identifier for a process by PID.
 // Uses the Objective-C runtime to call NSRunningApplication.bundleIdentifier.
 // Returns a malloc'd C string that the caller must free, or NULL on failure.
+//
+// Called once per window during ListWindows, so wrap in an autorelease pool
+// to drain autoreleased NSRunningApplication/NSString each iteration.
 static char* bundle_id_for_pid(pid_t pid) {
+    void *pool = objc_autoreleasePoolPush();
+    char *result = NULL;
+
     Class cls = objc_getClass("NSRunningApplication");
-    if (!cls) return NULL;
+    if (!cls) goto done;
     SEL runSel = sel_registerName("runningApplicationWithProcessIdentifier:");
     id app = ((id(*)(Class, SEL, pid_t))objc_msgSend)(cls, runSel, pid);
-    if (!app) return NULL;
+    if (!app) goto done;
     SEL bidSel = sel_registerName("bundleIdentifier");
     id nsStr = ((id(*)(id, SEL))objc_msgSend)(app, bidSel);
-    if (!nsStr) return NULL;
+    if (!nsStr) goto done;
     SEL utf8Sel = sel_registerName("UTF8String");
     const char *utf8 = ((const char*(*)(id, SEL))objc_msgSend)(nsStr, utf8Sel);
-    if (!utf8) return NULL;
-    return strdup(utf8);
+    if (!utf8) goto done;
+    result = strdup(utf8);
+
+done:
+    objc_autoreleasePoolPop(pool);
+    return result;
 }
 */
 import "C"
@@ -356,7 +447,9 @@ func (s *darwinService) ListWindows(ctx context.Context) ([]Window, error) {
 		return nil, err
 	}
 
-	screens, err := s.ListScreens(ctx)
+	// Use the mirror-aware screen list so windows sitting on mirror
+	// non-primaries still resolve to the primary's UUID/name/id.
+	screens, err := listAllScreens(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -458,7 +551,37 @@ func (s *darwinService) ListWindows(ctx context.Context) ([]Window, error) {
 }
 
 // ListScreens returns all connected screens using CGGetActiveDisplayList (T058).
+//
+// Mirror sets: non-primary mirror members are omitted from the result so users
+// don't see duplicate entries for one visible image. Their geometry is still
+// considered by derivation via allScreensForDerive.
 func (s *darwinService) ListScreens(ctx context.Context) ([]Screen, error) {
+	all, err := listAllScreens(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// Drop mirror non-primaries (CGDisplayMirrorsDisplay returned non-zero).
+	out := make([]Screen, 0, len(all))
+	for _, s := range all {
+		if s.mirrorsID != 0 {
+			continue
+		}
+		out = append(out, s.Screen)
+	}
+	return out, nil
+}
+
+// screenWithMirror is an internal carrier that annotates a Screen with the
+// ID of the display it mirrors (0 when not a mirror non-primary).
+type screenWithMirror struct {
+	Screen
+	mirrorsID uint32
+}
+
+// listAllScreens returns every active display, including mirror non-primaries.
+// Used by deriveScreen so window→screen geometry resolution still works when
+// a mirrored display contains the window (it maps to the primary's identity).
+func listAllScreens(ctx context.Context) ([]screenWithMirror, error) {
 	var displayIDs [32]C.CGDirectDisplayID
 	var count C.uint32_t
 
@@ -467,7 +590,7 @@ func (s *darwinService) ListScreens(ctx context.Context) ([]Screen, error) {
 	}
 
 	primaryID := C.CGMainDisplayID()
-	screens := make([]Screen, 0, int(count))
+	screens := make([]screenWithMirror, 0, int(count))
 
 	for i := 0; i < int(count); i++ {
 		select {
@@ -479,14 +602,35 @@ func (s *darwinService) ListScreens(ctx context.Context) ([]Screen, error) {
 		id := displayIDs[i]
 		bounds := C.CGDisplayBounds(id)
 
-		screens = append(screens, Screen{
-			ID:        uint32(id),
-			Name:      fmt.Sprintf("Display %d", uint32(id)),
-			X:         int(bounds.origin.x),
-			Y:         int(bounds.origin.y),
-			Width:     int(bounds.size.width),
-			Height:    int(bounds.size.height),
-			IsPrimary: id == primaryID,
+		uuid := ""
+		if cs := C.display_uuid_string(id); cs != nil {
+			uuid = C.GoString(cs)
+			C.free(unsafe.Pointer(cs))
+		}
+
+		name := ""
+		if cs := C.display_localized_name(id); cs != nil {
+			name = C.GoString(cs)
+			C.free(unsafe.Pointer(cs))
+		}
+		if name == "" {
+			name = fmt.Sprintf("Display %d", uint32(id))
+		}
+
+		mirrorsID := uint32(C.display_mirrors_display(id))
+
+		screens = append(screens, screenWithMirror{
+			Screen: Screen{
+				ID:        uint32(id),
+				Name:      name,
+				UUID:      uuid,
+				X:         int(bounds.origin.x),
+				Y:         int(bounds.origin.y),
+				Width:     int(bounds.size.width),
+				Height:    int(bounds.size.height),
+				IsPrimary: id == primaryID,
+			},
+			mirrorsID: mirrorsID,
 		})
 	}
 
@@ -551,7 +695,7 @@ func (s *darwinService) ResizeWindow(ctx context.Context, pid uint32, title stri
 // The entry pairs the resolved Window with its CGWindowID for the CGS batch lookup.
 func windowFromCGInfo(
 	dict C.CFDictionaryRef,
-	screens []Screen,
+	screens []screenWithMirror,
 	axCache map[uint32]C.CFArrayRef,
 	bundleIDCache map[uint32]string,
 	pidWindowIndex map[uint32]int,
@@ -627,10 +771,11 @@ func windowFromCGInfo(
 	}
 
 	// Derive screen_id from the screen with the largest intersection area
-	screenID, screenName := deriveScreen(x, y, width, height, screens)
+	screenID, screenName, screenUUID := deriveScreen(x, y, width, height, screens)
 	if state == StateMinimized || state == StateHidden {
 		screenID = 0
 		screenName = ""
+		screenUUID = ""
 	}
 
 	// Retrieve bundle ID from cache (one lookup per PID, not per window)
@@ -657,19 +802,22 @@ func windowFromCGInfo(
 			State:      state,
 			ScreenID:   screenID,
 			ScreenName: screenName,
+			ScreenUUID: screenUUID,
 			Desktop:    -1,
 		},
 		cgID: uint32(cgWinNum),
 	}
 }
 
-// deriveScreen returns the screen with the largest intersection area with the given window rectangle.
-func deriveScreen(wx, wy, ww, wh int, screens []Screen) (uint32, string) {
+// deriveScreen returns the identity of the screen with the largest intersection
+// area with the given window rectangle. When the best match is a mirror
+// non-primary (its mirrorsID is non-zero), the identity is remapped to the
+// primary so callers observe the mirror set as a single display.
+func deriveScreen(wx, wy, ww, wh int, screens []screenWithMirror) (uint32, string, string) {
 	maxArea := 0
-	var bestID uint32
-	var bestName string
+	bestIdx := -1
 
-	for _, s := range screens {
+	for i, s := range screens {
 		ix1 := max(wx, s.X)
 		iy1 := max(wy, s.Y)
 		ix2 := min(wx+ww, s.X+s.Width)
@@ -679,12 +827,23 @@ func deriveScreen(wx, wy, ww, wh int, screens []Screen) (uint32, string) {
 			area := (ix2 - ix1) * (iy2 - iy1)
 			if area > maxArea {
 				maxArea = area
-				bestID = s.ID
-				bestName = s.Name
+				bestIdx = i
 			}
 		}
 	}
-	return bestID, bestName
+
+	if bestIdx < 0 {
+		return 0, "", ""
+	}
+	best := screens[bestIdx]
+	if best.mirrorsID != 0 {
+		for _, s := range screens {
+			if s.ID == best.mirrorsID {
+				return s.ID, s.Name, s.UUID
+			}
+		}
+	}
+	return best.ID, best.Name, best.UUID
 }
 
 // findAXWindow searches for an AXUIElementRef by PID and title (caller must CFRelease).

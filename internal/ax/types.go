@@ -26,7 +26,8 @@ type Window struct {
 	ScreenName string      `json:"screen_name"`
 	// Desktop is the Mission Control desktop number (1-based).
 	// 0 = assigned to all desktops, -1 = unknown (minimized or API unavailable).
-	Desktop int `json:"desktop"`
+	Desktop    int    `json:"desktop"`
+	ScreenUUID string `json:"screen_uuid"`
 }
 
 // Screen represents an individual display on macOS.
@@ -38,6 +39,7 @@ type Screen struct {
 	Width     int    `json:"width"`
 	Height    int    `json:"height"`
 	IsPrimary bool   `json:"is_primary"`
+	UUID      string `json:"uuid"`
 }
 
 // Application represents a running application on macOS.
