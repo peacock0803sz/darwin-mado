@@ -40,7 +40,7 @@ reconnection order changes — copy them into presets and --screen flags.`,
 			screens, err := svc.ListScreens(ctx)
 			if err != nil {
 				if errors.Is(err, context.DeadlineExceeded) {
-					_ = f.PrintError(6, "AX operation timed out", nil)
+					_ = f.PrintError(6, "screen list timed out", nil)
 					os.Exit(6)
 				}
 				_ = f.PrintError(1, err.Error(), nil)
