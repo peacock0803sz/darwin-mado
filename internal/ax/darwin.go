@@ -860,6 +860,10 @@ func findAXWindow(pid uint32, title string) (C.AXUIElementRef, error) {
 
 		titleCS := C.ax_window_title(win)
 		if titleCS == nil {
+			if title == "" {
+				C.CFRetain(C.CFTypeRef(win))
+				return win, nil
+			}
 			continue
 		}
 		t := C.GoString(titleCS)
