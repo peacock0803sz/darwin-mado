@@ -1,6 +1,6 @@
 module github.com/peacock0803sz/mado
 
-go 1.25
+go 1.27.1
 
 require (
 	github.com/sebdah/goldie/v2 v2.8.0
