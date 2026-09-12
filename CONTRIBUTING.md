@@ -65,6 +65,21 @@ CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
 lipo -create -output mado.out mado-amd64.out mado-arm64.out
 ```
 
+## Nix Packaging
+
+`nix/package.nix` records a `vendorHash` for the Go module set. It is derived from `go.mod` and `go.sum`, so any dependency change invalidates it and `nix build` fails with a fixed-output hash mismatch. Since `nix-build` is a required status check, a stale hash blocks every pull request.
+
+Refresh it after changing Go dependencies:
+
+```bash
+nix run nixpkgs#nix-update -- --flake --version=skip default
+nix build .#default --no-link
+```
+
+The `Fix vendorHash` workflow does this automatically on pull requests that touch `go.mod` or `go.sum`, so the manual step is only needed for local work.
+
+Keep the `go` directive in `go.mod` at or below the Go version packaged in nixpkgs. `buildGoModule` sets `GOTOOLCHAIN=local` and cannot download a newer toolchain, so raising the directive makes `nix build` fail. Renovate is configured not to bump it.
+
 ## Code Conventions
 
 - AX API -- access only through the `WindowService` interface in `internal/ax/interface.go`. Direct calls are prohibited.
