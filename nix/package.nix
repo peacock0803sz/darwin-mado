@@ -11,7 +11,7 @@ buildGoModule {
 
   src = lib.cleanSource ../.;
 
-  vendorHash = "sha256-y8ZUtc70LFItESZsLtor/pd7vJusvCH4AwYzAl0y8u0=";
+  vendorHash = "sha256-RGfYVhSFb/fFrLJ6PwG4ZXLuHdWcdYm2LmLLU7flM/s=";
 
   env.CGO_ENABLED = "1";
 
