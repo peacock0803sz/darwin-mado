@@ -17,7 +17,7 @@ jobs:
   fix-vendor-hash:
     # Fork PRs never get a write-capable token, so the push below would fail.
     if: github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: macos-15 # packages.default is darwin-only, see lib.optionalAttrs in flake.nix
+    runs-on: macos-26 # packages.default is darwin-only, see lib.optionalAttrs in flake.nix
     env:
       GIT_AUTHOR_NAME: peacock0803sz
       GIT_AUTHOR_EMAIL: 33555487+peacock0803sz@users.noreply.github.com
